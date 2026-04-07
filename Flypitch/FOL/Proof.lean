@@ -1,0 +1,273 @@
+import Flypitch.FOL.Formula
+import Mathlib.Data.Set.Basic
+import Mathlib.Data.Set.Image
+
+universe u
+
+namespace Flypitch
+namespace fol
+
+variable {L : Language}
+
+inductive prf : Set (formula L) → formula L → Type u
+  | axm {Γ A} : A ∈ Γ → prf Γ A
+  | impI {Γ : Set (formula L)} {A B} : prf (insert A Γ) B → prf Γ (A ⟹ B)
+  | impE {Γ} (A) {B} : prf Γ (A ⟹ B) → prf Γ A → prf Γ B
+  | falsumE {Γ : Set (formula L)} {A} : prf (insert (∼A) Γ) ⊥ → prf Γ A
+  | allI {Γ A} : prf (lift_formula1 '' Γ) A → prf Γ (∀' A)
+  | allE₂ {Γ} (A : formula L) (t : term L) : prf Γ (∀' A) → prf Γ (subst_formula A t 0)
+  | ref (Γ : Set (formula L)) (t : term L) : prf Γ (t ≃ t)
+  | subst₂ {Γ} (s t : term L) (f : formula L) :
+      prf Γ (s ≃ t) → prf Γ (subst_formula f s 0) → prf Γ (subst_formula f t 0)
+
+infix:51 " ⊢ " => prf
+
+def provable (T : Set (formula L)) (f : formula L) : Prop :=
+  Nonempty (T ⊢ f)
+
+infix:51 " ⊢' " => provable
+
+noncomputable def allE {Γ : Set (formula L)} (A : formula L) (t : term L) {B : formula L}
+    (h₁ : Γ ⊢ ∀' A) (h₂ : subst_formula A t 0 = B) : Γ ⊢ B := by
+  cases h₂
+  exact prf.allE₂ A t h₁
+
+noncomputable def subst {Γ : Set (formula L)} {s t : term L} (f₁ : formula L) {f₂ : formula L}
+    (h₁ : Γ ⊢ s ≃ t) (h₂ : Γ ⊢ subst_formula f₁ s 0) (h₃ : subst_formula f₁ t 0 = f₂) :
+    Γ ⊢ f₂ := by
+  cases h₃
+  exact prf.subst₂ s t f₁ h₁ h₂
+
+noncomputable def axm1 {Γ : Set (formula L)} {A : formula L} : insert A Γ ⊢ A :=
+  prf.axm (by simp)
+
+noncomputable def axm2 {Γ : Set (formula L)} {A B : formula L} : insert A (insert B Γ) ⊢ B :=
+  prf.axm (by simp)
+
+noncomputable def weakening {Γ Δ : Set (formula L)} {f : formula L}
+    (h₁ : Γ ⊆ Δ) (h₂ : Γ ⊢ f) : Δ ⊢ f := by
+  induction h₂ generalizing Δ with
+  | axm h =>
+      exact prf.axm (h₁ h)
+  | impI h ih =>
+      refine prf.impI ?_
+      apply ih
+      intro x hx
+      simp only [Set.mem_insert_iff] at hx ⊢
+      rcases hx with rfl | hx
+      · exact Or.inl rfl
+      · exact Or.inr (h₁ hx)
+  | impE A hImp hA ihImp ihA =>
+      exact prf.impE A (ihImp h₁) (ihA h₁)
+  | falsumE h ih =>
+      refine prf.falsumE ?_
+      apply ih
+      intro x hx
+      simp only [Set.mem_insert_iff] at hx ⊢
+      rcases hx with rfl | hx
+      · exact Or.inl rfl
+      · exact Or.inr (h₁ hx)
+  | allI h ih =>
+      refine prf.allI ?_
+      apply ih
+      intro y hy
+      rcases hy with ⟨x, hx, rfl⟩
+      exact Set.mem_image_of_mem lift_formula1 (h₁ hx)
+  | allE₂ A t h ih =>
+      exact prf.allE₂ A t (ih h₁)
+  | ref _ t =>
+      exact prf.ref Δ t
+  | subst₂ s t f hEq hSub ihEq ihSub =>
+      exact prf.subst₂ s t f (ihEq h₁) (ihSub h₁)
+
+noncomputable def weakening1 {Γ : Set (formula L)} {f₁ f₂ : formula L}
+    (h : Γ ⊢ f₂) : insert f₁ Γ ⊢ f₂ :=
+  weakening (by
+    intro x hx
+    exact Or.inr hx) h
+
+noncomputable def weakening2 {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
+    (h : insert f₁ Γ ⊢ f₂) : insert f₁ (insert f₃ Γ) ⊢ f₂ :=
+  weakening (by
+    intro x hx
+    simp only [Set.mem_insert_iff] at hx ⊢
+    rcases hx with rfl | hx
+    · exact Or.inl rfl
+    · exact Or.inr (Or.inr hx)) h
+
+noncomputable def impI' {Γ : Set (formula L)} {A B : formula L} (h : insert A Γ ⊢' B) :
+    Γ ⊢' (A ⟹ B) := by
+  rcases h with ⟨h⟩
+  exact ⟨prf.impI h⟩
+
+noncomputable def impE' {Γ : Set (formula L)} (A : formula L) {B : formula L}
+    (h₁ : Γ ⊢' (A ⟹ B)) (h₂ : Γ ⊢' A) : Γ ⊢' B := by
+  rcases h₁ with ⟨h₁⟩
+  rcases h₂ with ⟨h₂⟩
+  exact ⟨prf.impE A h₁ h₂⟩
+
+noncomputable def falsumE' {Γ : Set (formula L)} {A : formula L} (h : insert (∼A) Γ ⊢' ⊥) :
+    Γ ⊢' A := by
+  rcases h with ⟨h⟩
+  exact ⟨prf.falsumE h⟩
+
+noncomputable def allI' {Γ : Set (formula L)} {A : formula L} (h : lift_formula1 '' Γ ⊢' A) :
+    Γ ⊢' ∀' A := by
+  rcases h with ⟨h⟩
+  exact ⟨prf.allI h⟩
+
+noncomputable def allE₂' {Γ : Set (formula L)} {A : formula L} {t : term L} (h : Γ ⊢' ∀' A) :
+    Γ ⊢' subst_formula A t 0 := by
+  rcases h with ⟨h⟩
+  exact ⟨prf.allE₂ A t h⟩
+
+noncomputable def ref' (Γ : Set (formula L)) (t : term L) : Γ ⊢' (t ≃ t) :=
+  ⟨prf.ref Γ t⟩
+
+noncomputable def subst₂' {Γ : Set (formula L)} (s t : term L) (f : formula L)
+    (h₁ : Γ ⊢' (s ≃ t)) (h₂ : Γ ⊢' subst_formula f s 0) : Γ ⊢' subst_formula f t 0 := by
+  rcases h₁ with ⟨h₁⟩
+  rcases h₂ with ⟨h₂⟩
+  exact ⟨prf.subst₂ s t f h₁ h₂⟩
+
+noncomputable def weakening' {Γ Δ : Set (formula L)} {f : formula L} (h₁ : Γ ⊆ Δ)
+    (h₂ : Γ ⊢' f) : Δ ⊢' f := by
+  rcases h₂ with ⟨h₂⟩
+  exact ⟨weakening h₁ h₂⟩
+
+noncomputable def weakening1' {Γ : Set (formula L)} {f₁ f₂ : formula L} (h : Γ ⊢' f₂) :
+    insert f₁ Γ ⊢' f₂ := by
+  rcases h with ⟨h⟩
+  exact ⟨weakening1 h⟩
+
+noncomputable def weakening2' {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
+    (h : insert f₁ Γ ⊢' f₂) : insert f₁ (insert f₃ Γ) ⊢' f₂ := by
+  rcases h with ⟨h⟩
+  exact ⟨weakening2 h⟩
+
+noncomputable def prf_lift {Γ : Set (formula L)} {f : formula L} (n m : Nat) (h : Γ ⊢ f) :
+    Set.image (fun g : formula L => lift_formula_at g n m) Γ ⊢ lift_formula_at f n m := by
+  induction h generalizing m with
+  | axm hmem =>
+      exact prf.axm (Set.mem_image_of_mem (fun g : formula L => lift_formula_at g n m) hmem)
+  | impI h ih =>
+      rename_i G A B
+      have h' :
+          insert (lift_formula_at A n m) (Set.image (fun g : formula L => lift_formula_at g n m) G) ⊢
+            lift_formula_at B n m := by
+        simpa [Set.image_insert_eq] using (ih (m := m))
+      exact prf.impI h'
+  | impE A hImp hA ihImp ihA =>
+      exact prf.impE (lift_formula_at A n m) (ihImp (m := m)) (ihA (m := m))
+  | falsumE h ih =>
+      rename_i G A
+      have h' :
+          insert (∼(lift_formula_at A n m))
+            (Set.image (fun g : formula L => lift_formula_at g n m) G) ⊢ (⊥ : formula L) := by
+        simpa [Set.image_insert_eq, fol.not] using (ih (m := m))
+      exact prf.falsumE h'
+  | allI h ih =>
+      rename_i G A
+      have h' :
+          Set.image lift_formula1 (Set.image (fun g : formula L => lift_formula_at g n m) G) ⊢
+            lift_formula_at A n (m + 1) := by
+        simpa [Set.image_image, Function.comp, lift_formula1, lift_formula, lift_formula1_lift_formula_at]
+          using (ih (m := m + 1))
+      exact prf.allI h'
+  | allE₂ A t h ih =>
+      exact allE (A := lift_formula_at A n (m + 1)) (t := t ↑' n # m) (ih (m := m))
+        (lift_at_subst_formula_small0 (f := A) (s := t) n m)
+  | ref G t =>
+      exact prf.ref _ (t ↑' n # m)
+  | subst₂ s t f hEq hSub ihEq ihSub =>
+      exact subst (f₁ := lift_formula_at f n (m + 1)) (ihEq (m := m))
+        (by simpa using (ihSub (m := m)))
+        (lift_at_subst_formula_small0 (f := f) (s := t) n m)
+
+noncomputable def substitution {Γ : Set (formula L)} {f : formula L} (t : term L) (n : Nat)
+    (h : Γ ⊢ f) :
+    Set.image (fun g : formula L => subst_formula g t n) Γ ⊢ subst_formula f t n := by
+  induction h generalizing n with
+  | axm hmem =>
+      exact prf.axm (Set.mem_image_of_mem (fun g : formula L => subst_formula g t n) hmem)
+  | impI h ih =>
+      rename_i G A B
+      have h' :
+          insert (subst_formula A t n) (Set.image (fun g : formula L => subst_formula g t n) G) ⊢
+            subst_formula B t n := by
+        simpa [Set.image_insert_eq] using (ih (n := n))
+      exact prf.impI h'
+  | impE A hImp hA ihImp ihA =>
+      exact prf.impE (subst_formula A t n) (ihImp (n := n)) (ihA (n := n))
+  | falsumE h ih =>
+      rename_i G A
+      have h' :
+          insert (∼(subst_formula A t n))
+            (Set.image (fun g : formula L => subst_formula g t n) G) ⊢ (⊥ : formula L) := by
+        simpa [Set.image_insert_eq, fol.not] using (ih (n := n))
+      exact prf.falsumE h'
+  | allI h ih =>
+      rename_i G A
+      have hset :
+          Set.image (fun g : formula L => subst_formula (lift_formula1 g) t (n + 1)) G =
+            Set.image lift_formula1 (Set.image (fun g : formula L => subst_formula g t n) G) := by
+        ext x
+        constructor
+        · intro hx
+          rcases hx with ⟨y, hy, rfl⟩
+          refine ⟨subst_formula y t n, ?_, ?_⟩
+          · exact Set.mem_image_of_mem (fun g : formula L => subst_formula g t n) hy
+          · simpa [lift_formula1, lift_formula] using
+              (lift_formula1_subst_shift (f := y) (s := t) (n := n)).symm
+        · intro hx
+          rcases hx with ⟨y, ⟨z, hz, rfl⟩, rfl⟩
+          refine ⟨z, hz, ?_⟩
+          simpa [lift_formula1, lift_formula] using
+            (lift_formula1_subst_shift (f := z) (s := t) (n := n))
+      have htemp := ih (n := n + 1)
+      have ih' :
+          Set.image (fun g : formula L => subst_formula (lift_formula1 g) t (n + 1)) G ⊢
+            subst_formula A t (n + 1) := by
+        simpa [Set.image_image, Function.comp, lift_formula1, lift_formula] using htemp
+      have h' :
+          Set.image lift_formula1 (Set.image (fun g : formula L => subst_formula g t n) G) ⊢
+            subst_formula A t (n + 1) := by
+        simpa [hset] using ih'
+      exact prf.allI h'
+  | allE₂ A u h ih =>
+      exact allE (A := subst_formula A t (n + 1)) (t := subst_term u t n) (ih (n := n))
+        (subst_formula2_zero (f := A) (s₁ := u) (s₂ := t) n).symm
+  | ref G u =>
+      exact prf.ref _ (u[t // n])
+  | subst₂ s u f hEq hSub ihEq ihSub =>
+      exact subst (f₁ := subst_formula f t (n + 1)) (ihEq (n := n))
+        (by simpa [subst_formula2_zero (f := f) (s₁ := s) (s₂ := t) n] using (ihSub (n := n)))
+        (subst_formula2_zero (f := f) (s₁ := u) (s₂ := t) n).symm
+
+noncomputable def reflect_prf_lift1 {Γ : Set (formula L)} {f : formula L}
+    (h : lift_formula1 '' Γ ⊢ lift_formula f 1) : Γ ⊢ f := by
+  have h' := substitution (&0 : term L) 0 h
+  have h''₀ : Set.image (fun g : formula L => subst_formula (lift_formula1 g) (&0) 0) Γ ⊢
+      subst_formula (lift_formula f 1) (&0) 0 := by
+    simpa [Set.image_image, Function.comp, lift_formula1, lift_formula] using h'
+  have hf : subst_formula (lift_formula f 1) (&0) 0 = f := by
+    simpa [lift_formula1, lift_formula] using (lift_formula1_subst (f := f) (s := (&0 : term L)))
+  have h'' : Set.image (fun g : formula L => subst_formula (lift_formula1 g) (&0) 0) Γ ⊢ f := by
+    exact cast (by rw [hf]) h''₀
+  have hset : Set.image (fun g : formula L => subst_formula (lift_formula1 g) (&0) 0) Γ = Γ := by
+    ext x
+    constructor
+    · intro hx
+      rcases hx with ⟨y, hy, rfl⟩
+      have hy' : subst_formula (lift_formula1 y) (&0) 0 = y := by
+        simpa [lift_formula1, lift_formula] using
+          (lift_formula1_subst (f := y) (s := (&0 : term L)))
+      simpa [hy'] using hy
+    · intro hx
+      refine ⟨x, hx, ?_⟩
+      simpa [lift_formula1, lift_formula] using
+        (lift_formula1_subst (f := x) (s := (&0 : term L)))
+  simpa [hset] using h''
+
+end fol
+end Flypitch

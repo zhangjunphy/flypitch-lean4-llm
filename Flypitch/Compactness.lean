@@ -1,4 +1,4 @@
-import Flypitch.FOL.Proof
+import Flypitch.FOL.Theory
 import Mathlib.Data.Finset.Image
 import Mathlib.Data.List.Basic
 
@@ -29,6 +29,9 @@ def list_except {α : Type u} [DecidableEq α] (xs : List α) (x : α) (T : Set 
     exact List.mem_filter.mpr ⟨hy, by simpa [hyx]⟩
 
 namespace fol
+
+@[reducible] def finTheory {L : Language.{u}} (Γ : Finset (sentence L)) : Theory L :=
+  ⟨(Γ : Set (sentence L))⟩
 
 noncomputable def image_lift {α : Type u} {β : Type v} {f : α → β} {S : Set α} {x : β}
     (hx : x ∈ f '' S) : Σ' x' : α, x' ∈ S ∧ f x' = x := by
@@ -178,6 +181,129 @@ theorem proof_compactness {L : Language.{u}} {ψ : formula L} {T : Set (formula 
       · intro x hx
         simp at hx
         exact hx.elim (fun hx₁ => hsub₁ hx₁) (fun hx₂ => hsub₂ hx₂)
+
+theorem theory_proof_compactness {L : Language.{u}} {T : Theory L} {ψ : sentence L} (hψ : T ⊢' ψ) :
+    ∃ Γ : Finset (sentence L), (finTheory Γ ⊢' ψ) ∧ ((Γ : Set (sentence L)) ⊆ T.carrier) := by
+  classical
+  haveI : DecidableEq (sentence L) := Classical.decEq _
+  rcases proof_compactness (ψ := (ψ : formula L)) (T := Theory.fst T) hψ with ⟨Δ, hΔ, hsub⟩
+  let pre : {x // x ∈ (Δ : Set (formula L))} → sentence L :=
+    fun x => Classical.choose (hsub x.property)
+  let Γ : Finset (sentence L) := by
+    classical
+    exact Δ.attach.image pre
+  have hΓsub : (Γ : Set (sentence L)) ⊆ T.carrier := by
+    intro s hs
+    rcases Finset.mem_image.mp hs with ⟨x, hx, rfl⟩
+    exact (Classical.choose_spec (hsub x.property)).1
+  have hImage : Theory.fst (finTheory Γ) = (Δ : Set (formula L)) := by
+    ext x
+    constructor
+    · rintro ⟨s, hs, hsx⟩
+      have hs' : s ∈ Set.range pre := by
+        simpa [finTheory, Γ] using hs
+      rcases hs' with ⟨y : {x // x ∈ (Δ : Set (formula L))}, rfl⟩
+      have hy' : ((pre y : sentence L) : formula L) = y := (Classical.choose_spec (hsub y.property)).2
+      have hxEq : x = (y : formula L) := by
+        simpa [hy'] using hsx.symm
+      simpa [hxEq] using y.property
+    · intro hx
+      let y : {x // x ∈ (Δ : Set (formula L))} := ⟨x, hx⟩
+      refine ⟨pre y, ?_, (Classical.choose_spec (hsub hx)).2⟩
+      change pre y ∈ (Γ : Set (sentence L))
+      simpa [Γ]
+  have hΓ : finTheory Γ ⊢' ψ := by
+    change Nonempty (Theory.fst (finTheory Γ) ⊢ (ψ : formula L))
+    simpa [sprf, finTheory, hImage] using (hΔ : ((Δ : Set (formula L)) ⊢' (ψ : formula L)))
+  exact ⟨Γ, hΓ, hΓsub⟩
+
+theorem theory_proof_compactness_iff {L : Language.{u}} {T : Theory L} {ψ : sentence L} :
+    T ⊢' ψ ↔ ∃ Γ : Finset (sentence L), (finTheory Γ ⊢' ψ) ∧ ((Γ : Set (sentence L)) ⊆ T.carrier) := by
+  constructor
+  · exact theory_proof_compactness
+  · rintro ⟨Γ, hΓ, hsub⟩
+    rcases hΓ with ⟨hΓ⟩
+    exact ⟨sweakening hsub hΓ⟩
+
+theorem is_consistent_union {L : Language.{u}} {T₁ T₂ : Theory L} (h₁ : is_consistent T₁)
+    (h₂ : ∀ ψ, ψ ∈ T₂ → insert (∼ψ) T₁ ⊢' (⊥ : sentence L)) : is_consistent (T₁ ∪ T₂) := by
+  classical
+  have lem : ∀ T₀ : Finset (sentence L), ((T₀ : Set (sentence L)) ⊆ T₂.carrier) → is_consistent (T₁ ∪ finTheory T₀) := by
+    intro T₀
+    refine Finset.induction_on T₀ ?_ ?_
+    · intro _
+      have hEq : T₁ ∪ finTheory (∅ : Finset (sentence L)) = T₁ := by
+        ext x
+        change x ∈ T₁.carrier ∪ (finTheory (∅ : Finset (sentence L))).carrier ↔ x ∈ T₁.carrier
+        constructor
+        · intro hx
+          exact hx.elim id (fun hFalse => by cases hFalse)
+        · intro hx
+          exact Or.inl hx
+      simpa [hEq] using h₁
+    · intro ψ s hψ ih hs
+      have hsTail : ((s : Set (sentence L)) ⊆ T₂.carrier) := by
+        intro x hx
+        exact hs (by simp [hx])
+      have hsψ : ψ ∈ T₂ := hs (by simp)
+      have ih' : is_consistent (T₁ ∪ finTheory s) := ih hsTail
+      intro hBad
+      have hPosEq : T₁ ∪ finTheory (insert ψ s) = insert ψ (T₁ ∪ finTheory s) := by
+        ext x
+        change x ∈ T₁.carrier ∪ (finTheory (insert ψ s)).carrier ↔ x ∈ (insert ψ (T₁ ∪ finTheory s)).carrier
+        constructor
+        · intro hx
+          rcases hx with hx | hx
+          · exact Or.inr (Or.inl hx)
+          · have hx' : x = ψ ∨ x ∈ s := by
+              have hxs : x ∈ ((insert ψ s : Finset (sentence L)) : Set (sentence L)) := by
+                simpa [finTheory] using hx
+              simpa using hxs
+            rcases hx' with rfl | hx
+            · exact Or.inl rfl
+            · exact Or.inr (Or.inr hx)
+        · intro hx
+          change x = ψ ∨ x ∈ (T₁ ∪ finTheory s).carrier at hx
+          rcases hx with rfl | hx
+          · exact Or.inr (by simp [finTheory])
+          · rcases hx with hx | hx
+            · exact Or.inl hx
+            · exact Or.inr (by
+                change x ∈ ((insert ψ s : Finset (sentence L)) : Set (sentence L))
+                simp [hx])
+      have hPos : insert ψ (T₁ ∪ finTheory s) ⊢' (⊥ : sentence L) := by
+        simpa [hPosEq] using hBad
+      have hNegBase : insert (∼ψ) T₁ ⊢' (⊥ : sentence L) := h₂ ψ hsψ
+      have hNeg : insert (∼ψ) (T₁ ∪ finTheory s) ⊢' (⊥ : sentence L) := by
+        rcases hNegBase with ⟨hNegBase⟩
+        exact ⟨sweakening (by
+          intro x hx
+          change x ∈ (insert (∼ψ) T₁).carrier at hx
+          change x ∈ (insert (∼ψ) (T₁ ∪ finTheory s)).carrier
+          rcases hx with rfl | hx
+          · exact Or.inl rfl
+          · exact Or.inr (Or.inl hx)) hNegBase⟩
+      exact ih' (Flypitch.fol.sprf_by_cases ψ hPos hNeg)
+  intro hBad
+  rcases theory_proof_compactness hBad with ⟨T₀, h₀, hT⟩
+  let T₀' : Finset (sentence L) := T₀.filter fun x => decide (x ∉ T₁)
+  have hT₀' : ((T₀' : Set (sentence L)) ⊆ T₂.carrier) := by
+    intro x hx
+    have hx' : x ∈ T₀ ∧ x ∉ T₁ := by simpa [T₀'] using hx
+    exact (hT hx'.1).resolve_left hx'.2
+  have hSmall : T₁ ∪ finTheory T₀' ⊢' (⊥ : sentence L) := by
+    rcases h₀ with ⟨h₀⟩
+    exact ⟨sweakening (by
+      intro x hx
+      change x ∈ (finTheory T₀).carrier at hx
+      have hxT₀ : x ∈ T₀ := hx
+      have hxUnion : x ∈ (T₁ ∪ T₂) := hT hx
+      by_cases hxT₁ : x ∈ T₁
+      · exact Or.inl hxT₁
+      · have hxT₀' : x ∈ T₀' := by
+          simp [T₀', hxT₀, hxT₁]
+        exact Or.inr hxT₀') h₀⟩
+  exact (lem T₀' hT₀') hSmall
 
 end fol
 end Flypitch

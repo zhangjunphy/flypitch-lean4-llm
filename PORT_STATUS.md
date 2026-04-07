@@ -66,6 +66,9 @@ The upstream project breaks into two large branches that meet in `zfc.lean`.
 - [x] Extend `Flypitch.FOL` through semantics and soundness.
 - [x] Port a small regression target analogous to upstream `abel.lean`.
 - [x] Port the front formula-level tranche of `compactness.lean`.
+- [x] Port sentence/theory infrastructure from upstream `fol.lean` in `Flypitch/FOL/Theory.lean`.
+- [x] Finish the theory-level compactness lemmas in `Flypitch/Compactness.lean`.
+- [x] Port maximal consistent extension machinery from upstream `completion.lean` in `Flypitch/Completion.lean`.
 - [ ] Port `pSet_ordinal` as the first forcing-side hard dependency.
 - [ ] Port the topology/regular-open/collapse stack.
 - [ ] Port Boolean-valued models.
@@ -86,21 +89,23 @@ Every completed milestone must satisfy both checks:
 - `Flypitch/FOL/Formula.lean`
 - `Flypitch/FOL/Proof.lean`
 - `Flypitch/FOL/Semantics.lean`
+- `Flypitch/FOL/Theory.lean`
 - `Flypitch/Compactness.lean`
+- `Flypitch/Completion.lean`
 - `Flypitch/Examples/Abel.lean`
 
 ## Next Blocker
 
-The next critical blocker is the remaining theory-level half of upstream `compactness.lean` and the
-start of `completion.lean`. The newly ported `Flypitch/Compactness.lean` covers only the generic
-utilities and formula-level `proof_compactness`; the rest is blocked on sentence/theory
-infrastructure that still lives later in upstream `fol.lean`.
+The next critical blocker is upstream `colimit.lean`. The logic/completeness branch now includes
+`completion.lean`, so the next missing machinery is the directed-colimit layer that `language_extension`,
+`henkin`, and `completeness` depend on.
 
 The next Lean 4 tranche is:
 
-- sentence/theory infrastructure from upstream `fol.lean`
-- theory-level compactness/model-existence infrastructure
-- completion and maximal-consistent-extension machinery
+- `colimit.lean`
+- `language_extension.lean`
+- `henkin.lean`
+- `completeness.lean`
 
-After that, the next dependency chain is `completion.lean`, `colimit.lean`, `language_extension.lean`,
+After that, the remaining logic/completeness dependency chain is `colimit.lean`, `language_extension.lean`,
 `henkin.lean`, and `completeness.lean`. The forcing branch still starts later at `pSet_ordinal.lean`.

@@ -4,7 +4,7 @@ This file tracks the actual port sequence and the checks used to verify progress
 
 ## Target
 
-- Upstream repository: `/tmp/flypitch-upstream`
+- Upstream repository: `https://github.com/flypitch/flypitch`
 - End goal: port `src/summary.lean` and recover the theorem `independence_of_CH`
 
 ## Dependency Split

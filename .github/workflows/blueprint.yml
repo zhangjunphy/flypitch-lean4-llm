@@ -23,7 +23,6 @@ jobs:
   build_project:
     runs-on: ubuntu-latest
     name: Build project
-    timeout-minutes: 45
     steps:
       - name: Cleanup to free disk space
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.0

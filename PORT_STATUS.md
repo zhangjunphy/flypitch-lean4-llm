@@ -69,6 +69,9 @@ The upstream project breaks into two large branches that meet in `zfc.lean`.
 - [x] Port sentence/theory infrastructure from upstream `fol.lean` in `Flypitch/FOL/Theory.lean`.
 - [x] Finish the theory-level compactness lemmas in `Flypitch/Compactness.lean`.
 - [x] Port maximal consistent extension machinery from upstream `completion.lean` in `Flypitch/Completion.lean`.
+- [x] Port the directed-colimit and language-extension layer in `Flypitch/Colimit.lean` and `Flypitch/LanguageExtension.lean`.
+- [x] Port the early Henkin language-colimit slice in `Flypitch/Henkin.lean`.
+- [x] Port Henkin term/formula/bounded-formula chains and comparison maps into `LInfty`.
 - [ ] Port `pSet_ordinal` as the first forcing-side hard dependency.
 - [ ] Port the topology/regular-open/collapse stack.
 - [ ] Port Boolean-valued models.
@@ -92,20 +95,24 @@ Every completed milestone must satisfy both checks:
 - `Flypitch/FOL/Theory.lean`
 - `Flypitch/Compactness.lean`
 - `Flypitch/Completion.lean`
+- `Flypitch/Colimit.lean`
+- `Flypitch/LanguageExtension.lean`
+- `Flypitch/Henkin.lean`
 - `Flypitch/Examples/Abel.lean`
 
 ## Next Blocker
 
-The next critical blocker is upstream `colimit.lean`. The logic/completeness branch now includes
-`completion.lean`, so the next missing machinery is the directed-colimit layer that `language_extension`,
-`henkin`, and `completeness` depend on.
+The next critical blocker is the remaining theory-level half of upstream `henkin.lean`.
+The repository now has the directed-colimit, language-extension, Henkin language-chain
+infrastructure, and the induced term/formula/bounded-formula comparison maps into `LInfty`.
+What is still missing is the bijectivity/structural recursion layer over those comparison maps,
+followed by the Henkin theory chain, the union construction, and the bridge to a completed Henkin
+theory.
 
 The next Lean 4 tranche is:
 
-- `colimit.lean`
-- `language_extension.lean`
 - `henkin.lean`
 - `completeness.lean`
 
-After that, the remaining logic/completeness dependency chain is `colimit.lean`, `language_extension.lean`,
-`henkin.lean`, and `completeness.lean`. The forcing branch still starts later at `pSet_ordinal.lean`.
+After that, the remaining logic/completeness dependency chain is the rest of `henkin.lean` followed by
+`completeness.lean`. The forcing branch still starts later at `pSet_ordinal.lean`.

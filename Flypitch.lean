@@ -10,4 +10,5 @@ import Flypitch.FOL.Proof
 import Flypitch.FOL.Semantics
 import Flypitch.FOL.Syntax
 import Flypitch.FOL.Theory
+import Flypitch.Henkin
 import Flypitch.LanguageExtension

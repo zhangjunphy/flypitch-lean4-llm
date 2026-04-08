@@ -132,18 +132,50 @@ protected def sum_inl {L L' : Language.{u}} : L →ᴸ L.sum L' :=
 protected def sum_inr {L L' : Language.{u}} : L' →ᴸ L.sum L' :=
   ⟨fun {n} f => Sum.inr f, fun {n} R => Sum.inr R⟩
 
-@[reducible] def comp (g : L₂ →ᴸ L₃) (f : L₁ →ᴸ L₂) : L₁ →ᴸ L₃ :=
+  @[reducible] def comp (g : L₂ →ᴸ L₃) (f : L₁ →ᴸ L₂) : L₁ →ᴸ L₃ :=
   ⟨fun {n} x => g.on_function (f.on_function x), fun {n} x => g.on_relation (f.on_relation x)⟩
 
-local infixr:80 " ∘ᴸ " => Lhom.comp
+  local infixr:80 " ∘ᴸ " => Lhom.comp
 
-@[simp] theorem id_is_left_identity {F : L₁ →ᴸ L₂} : (Lhom.id L₂) ∘ᴸ F = F := by
-  cases F
-  rfl
+  theorem Lhom_funext {F G : L₁ →ᴸ L₂}
+      (h_fun : ∀ n x, @Lhom.on_function _ _ F n x = @Lhom.on_function _ _ G n x)
+      (h_rel : ∀ n x, @Lhom.on_relation _ _ F n x = @Lhom.on_relation _ _ G n x) : F = G := by
+    cases F with
+    | mk onfF onrF =>
+        cases G with
+        | mk onfG onrG =>
+            have hF := funext (fun n => funext (fun x => h_fun n x))
+            have hR := funext (fun n => funext (fun x => h_rel n x))
+            cases hF
+            cases hR
+            rfl
 
-@[simp] theorem id_is_right_identity {F : L₁ →ᴸ L₂} : F ∘ᴸ (Lhom.id L₁) = F := by
-  cases F
-  rfl
+  @[ext] theorem ext {F G : L₁ →ᴸ L₂}
+      (h_fun : ∀ n x, @Lhom.on_function _ _ F n x = @Lhom.on_function _ _ G n x)
+      (h_rel : ∀ n x, @Lhom.on_relation _ _ F n x = @Lhom.on_relation _ _ G n x) : F = G := by
+    exact Lhom_funext h_fun h_rel
+
+  @[simp] theorem id_is_left_identity {F : L₁ →ᴸ L₂} : (Lhom.id L₂) ∘ᴸ F = F := by
+    cases F
+    rfl
+
+  @[simp] theorem id_is_right_identity {F : L₁ →ᴸ L₂} : F ∘ᴸ (Lhom.id L₁) = F := by
+    cases F
+    rfl
+
+  @[simp] theorem comp_assoc {L₀ : Language.{u}} (g : L₂ →ᴸ L₃) (f : L₁ →ᴸ L₂) (e : L₀ →ᴸ L₁) :
+      (g ∘ᴸ f) ∘ᴸ e = g ∘ᴸ (f ∘ᴸ e) := by
+    rfl
+
+  @[simp] theorem comp_on_function (g : L₂ →ᴸ L₃) (f : L₁ →ᴸ L₂) {n : Nat}
+      (x : L₁.functions n) :
+      (g ∘ᴸ f).on_function x = g.on_function (f.on_function x) :=
+    rfl
+
+  @[simp] theorem comp_on_relation (g : L₂ →ᴸ L₃) (f : L₁ →ᴸ L₂) {n : Nat}
+      (x : L₁.relations n) :
+      (g ∘ᴸ f).on_relation x = g.on_relation (f.on_relation x) :=
+    rfl
 
 structure is_injective (ϕ : L →ᴸ L') : Prop where
   on_function : {n : Nat} → Function.Injective (@Lhom.on_function _ _ ϕ n)
@@ -190,11 +222,25 @@ attribute [reducible, instance] has_decidable_range.on_function has_decidable_ra
   | _, .app t₁ t₂, s, n => by
       simp [subst_term, on_term_subst]
 
-@[simp] theorem on_term_apps (ϕ : L →ᴸ L') : {l : Nat} → (t : preterm L l) → (ts : dvector (term L) l) →
+  @[simp] theorem on_term_apps (ϕ : L →ᴸ L') : {l : Nat} → (t : preterm L l) → (ts : dvector (term L) l) →
     on_term ϕ (apps t ts) = apps (on_term ϕ t) (ts.map (on_term ϕ))
   | _, t, [] => rfl
   | _, t, x :: xs => by
       simp [apps, on_term_apps]
+
+  @[simp] theorem on_term_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') : {l : Nat} → (t : preterm L l) →
+      on_term (ψ ∘ᴸ ϕ) t = on_term ψ (on_term ϕ t)
+    | _, .var _ => rfl
+    | _, .func _ => rfl
+    | _, .app t₁ t₂ => by
+        simp [on_term_comp]
+
+  @[simp] theorem on_term_id : {l : Nat} → (t : preterm L l) →
+      on_term (Lhom.id L) t = t
+    | _, .var _ => rfl
+    | _, .func _ => rfl
+    | _, .app t₁ t₂ => by
+        simp [on_term_id]
 
 theorem not_mem_symbols_in_term_on_term (ϕ : L →ᴸ L') {s : L'.symbols}
     (h : s ∉ Set.range (on_symbol ϕ)) : {l : Nat} → (t : preterm L l) →
@@ -252,11 +298,36 @@ theorem not_mem_symbols_in_term_on_term (ϕ : L →ᴸ L') {s : L'.symbols}
   | _, .all f, s, n => by
       simp [subst_formula, on_formula_subst]
 
-@[simp] theorem on_formula_apps_rel (ϕ : L →ᴸ L') : {l : Nat} → (f : preformula L l) → (ts : dvector (term L) l) →
+  @[simp] theorem on_formula_apps_rel (ϕ : L →ᴸ L') : {l : Nat} → (f : preformula L l) → (ts : dvector (term L) l) →
     on_formula ϕ (apps_rel f ts) = apps_rel (on_formula ϕ f) (ts.map (on_term ϕ))
   | _, f, [] => rfl
   | _, f, x :: xs => by
       simp [apps_rel, on_formula_apps_rel]
+
+  @[simp] theorem on_formula_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') : {l : Nat} → (f : preformula L l) →
+      on_formula (ψ ∘ᴸ ϕ) f = on_formula ψ (on_formula ϕ f)
+    | _, .falsum => rfl
+    | _, .equal _ _ => by
+        simp [on_formula, on_term_comp]
+    | _, .rel _ => rfl
+    | _, .apprel f t => by
+        simp [on_formula_comp]
+    | _, .imp f₁ f₂ => by
+        simp [on_formula_comp]
+    | _, .all f => by
+        simp [on_formula_comp]
+
+  @[simp] theorem on_formula_id : {l : Nat} → (f : preformula L l) →
+      on_formula (Lhom.id L) f = f
+    | _, .falsum => rfl
+    | _, .equal _ _ => by simp
+    | _, .rel _ => rfl
+    | _, .apprel f t => by
+        simp [on_formula_id]
+    | _, .imp f₁ f₂ => by
+        simp [on_formula_id]
+    | _, .all f => by
+        simp [on_formula_id]
 
 theorem not_mem_symbols_in_formula_on_formula (ϕ : L →ᴸ L') {s : L'.symbols}
     (h : s ∉ Set.range (on_symbol ϕ)) : {l : Nat} → (f : preformula L l) →
@@ -335,17 +406,39 @@ theorem bounded_formula_at_on_formula (ϕ : L →ᴸ L') : {l : Nat} → {f : pr
 @[simp] def on_bounded_term (ϕ : L →ᴸ L') {n l : Nat} (t : bounded_preterm L n l) : bounded_preterm L' n l :=
   ⟨on_term ϕ t.1, bounded_term_at_on_term (ϕ := ϕ) t.2⟩
 
-@[simp] theorem on_bounded_term_fst (ϕ : L →ᴸ L') {n l : Nat} (t : bounded_preterm L n l) :
+  @[simp] theorem on_bounded_term_fst (ϕ : L →ᴸ L') {n l : Nat} (t : bounded_preterm L n l) :
     (on_bounded_term ϕ t).fst = on_term ϕ t.fst :=
   rfl
 
-@[simp] def on_bounded_formula (ϕ : L →ᴸ L') {n l : Nat} (f : bounded_preformula L n l) :
+  @[simp] theorem on_bounded_term_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') {n l : Nat}
+      (t : bounded_preterm L n l) :
+      on_bounded_term (ψ ∘ᴸ ϕ) t = on_bounded_term ψ (on_bounded_term ϕ t) := by
+    apply Subtype.ext
+    simp
+
+  @[simp] theorem on_bounded_term_id {n l : Nat} (t : bounded_preterm L n l) :
+      on_bounded_term (Lhom.id L) t = t := by
+    apply Subtype.ext
+    simp
+
+  @[simp] def on_bounded_formula (ϕ : L →ᴸ L') {n l : Nat} (f : bounded_preformula L n l) :
     bounded_preformula L' n l :=
   ⟨on_formula ϕ f.1, bounded_formula_at_on_formula (ϕ := ϕ) f.2⟩
 
-@[simp] theorem on_bounded_formula_fst (ϕ : L →ᴸ L') {n l : Nat} (f : bounded_preformula L n l) :
+  @[simp] theorem on_bounded_formula_fst (ϕ : L →ᴸ L') {n l : Nat} (f : bounded_preformula L n l) :
     (on_bounded_formula ϕ f).fst = on_formula ϕ f.fst :=
   rfl
+
+  @[simp] theorem on_bounded_formula_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') {n l : Nat}
+      (f : bounded_preformula L n l) :
+      on_bounded_formula (ψ ∘ᴸ ϕ) f = on_bounded_formula ψ (on_bounded_formula ϕ f) := by
+    apply Subtype.ext
+    simp
+
+  @[simp] theorem on_bounded_formula_id {n l : Nat} (f : bounded_preformula L n l) :
+      on_bounded_formula (Lhom.id L) f = f := by
+    apply Subtype.ext
+    simp
 
 @[simp] def on_closed_term (ϕ : L →ᴸ L') (t : closed_term L) : closed_term L' :=
   on_bounded_term ϕ t

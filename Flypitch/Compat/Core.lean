@@ -75,6 +75,18 @@ theorem mem_of_pmem {x : α} : {n : Nat} → {xs : dvector α n} → xs.pmem x �
   | _, [] => []
   | _, x :: xs => f x :: map f xs
 
+@[simp] theorem map_congr_pmem {f g : α → β} :
+    {n : Nat} → {xs : dvector α n} →
+      (h : ∀ x, xs.pmem x → f x = g x) → xs.map f = xs.map g
+  | _, [], _ => rfl
+  | _, x :: xs, h => by
+      have hs : xs.map f = xs.map g := map_congr_pmem (xs := xs) (fun y hy => h y (PSum.inr hy))
+      simp [map, hs, h x (PSum.inl rfl)]
+
+@[simp] theorem map_congr_mem {f g : α → β} {n : Nat} {xs : dvector α n}
+    (h : ∀ x, x ∈ xs → f x = g x) : xs.map f = xs.map g :=
+  map_congr_pmem (xs := xs) (fun x hx => h x (mem_of_pmem hx))
+
 @[simp] theorem map_id : {n : Nat} → (xs : dvector α n) → xs.map (fun x => x) = xs
   | _, [] => rfl
   | _, _ :: _ => by simp [map_id]

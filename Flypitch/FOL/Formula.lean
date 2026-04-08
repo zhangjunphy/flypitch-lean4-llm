@@ -1,6 +1,6 @@
 import Flypitch.FOL.Syntax
 
-universe u
+universe u v
 
 namespace Flypitch
 namespace fol
@@ -59,6 +59,71 @@ def ex (f : formula L) : formula L :=
 
 def formula_of_relation {l : Nat} (R : L.relations l) : arity' (term L) (formula L) l :=
   arity'.ofDVectorMap (fun ts => apps_rel (preformula.rel R) ts)
+
+def formula.rec' {C : formula L → Sort v}
+    (hfalsum : C ⊥)
+    (hequal : Π t₁ t₂ : term L, C (t₁ ≃ t₂))
+    (hrel : Π {l : Nat} (R : L.relations l) (ts : dvector (term L) l),
+      C (apps_rel (preformula.rel R) ts))
+    (himp : Π {f₁ f₂ : formula L}, C f₁ → C f₂ → C (f₁ ⟹ f₂))
+    (hall : Π {f : formula L}, C f → C (∀' f)) :
+    ∀ {l : Nat} (f : preformula L l) (ts : dvector (term L) l), C (apps_rel f ts)
+  | _, .falsum, ts => by
+      cases ts
+      simpa using hfalsum
+  | _, .equal t₁ t₂, ts => by
+      cases ts
+      simpa using hequal t₁ t₂
+  | _, .rel R, ts => by
+      simpa using hrel R ts
+  | _, .apprel f t, ts => by
+      simpa [apps_rel] using formula.rec' hfalsum hequal hrel himp hall f (t :: ts)
+  | _, .imp f₁ f₂, ts => by
+      cases ts
+      simpa using himp (formula.rec' hfalsum hequal hrel himp hall f₁ [])
+        (formula.rec' hfalsum hequal hrel himp hall f₂ [])
+  | _, .all f, ts => by
+      cases ts
+      simpa using hall (formula.rec' hfalsum hequal hrel himp hall f [])
+
+def formula.rec {C : formula L → Sort v}
+    (hfalsum : C ⊥)
+    (hequal : Π t₁ t₂ : term L, C (t₁ ≃ t₂))
+    (hrel : Π {l : Nat} (R : L.relations l) (ts : dvector (term L) l),
+      C (apps_rel (preformula.rel R) ts))
+    (himp : Π {f₁ f₂ : formula L}, C f₁ → C f₂ → C (f₁ ⟹ f₂))
+    (hall : Π {f : formula L}, C f → C (∀' f)) :
+    ∀ f : formula L, C f :=
+  fun f => formula.rec' hfalsum hequal hrel himp hall f []
+
+theorem formula.rec'_apps_rel {C : formula L → Sort v}
+    (hfalsum : C ⊥)
+    (hequal : Π t₁ t₂ : term L, C (t₁ ≃ t₂))
+    (hrel : Π {l : Nat} (R : L.relations l) (ts : dvector (term L) l),
+      C (apps_rel (preformula.rel R) ts))
+    (himp : Π {f₁ f₂ : formula L}, C f₁ → C f₂ → C (f₁ ⟹ f₂))
+    (hall : Π {f : formula L}, C f → C (∀' f))
+    {l : Nat} (f : preformula L l) (ts : dvector (term L) l) :
+    @formula.rec' _ _ hfalsum hequal hrel himp hall 0 (apps_rel f ts) [] =
+      @formula.rec' _ _ hfalsum hequal hrel himp hall l f ts := by
+  induction ts with
+  | nil =>
+      rfl
+  | cons t ts ih =>
+      simp [apps_rel, formula.rec', ih]
+
+theorem formula.rec_apps_rel {C : formula L → Sort v}
+    (hfalsum : C ⊥)
+    (hequal : Π t₁ t₂ : term L, C (t₁ ≃ t₂))
+    (hrel : Π {l : Nat} (R : L.relations l) (ts : dvector (term L) l),
+      C (apps_rel (preformula.rel R) ts))
+    (himp : Π {f₁ f₂ : formula L}, C f₁ → C f₂ → C (f₁ ⟹ f₂))
+    (hall : Π {f : formula L}, C f → C (∀' f))
+    {l : Nat} (R : L.relations l) (ts : dvector (term L) l) :
+    @formula.rec _ _ hfalsum hequal hrel himp hall (apps_rel (preformula.rel R) ts) = hrel R ts := by
+  dsimp [formula.rec]
+  rw [formula.rec'_apps_rel]
+  rfl
 
 @[simp] def lift_formula_at : {l : Nat} → preformula L l → Nat → Nat → preformula L l
   | _, .falsum, _, _ => .falsum

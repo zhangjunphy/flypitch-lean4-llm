@@ -1,7 +1,7 @@
 import Mathlib
 import Flypitch.Compat.Core
 
-universe u
+universe u v
 
 namespace Flypitch
 namespace fol
@@ -99,6 +99,68 @@ theorem apps_eq_app {l : Nat} (t : preterm L (l + 1)) (s : term L) (ts : dvector
       exact ⟨t, s, by simp [apps]⟩
   | cons x xs ih =>
       simpa [apps] using ih (preterm.app t s) x
+
+noncomputable def term.rec {C : term L → Sort v}
+    (hvar : ∀ k : Nat, C (&k))
+    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l)
+      (ih_ts : ∀ t, ts.pmem t → C t), C (apps (preterm.func f) ts)) :
+    ∀ t : term L, C t :=
+  have h : ∀ {l : Nat} (t : preterm L l) (ts : dvector (term L) l)
+      (ih_ts : ∀ s, ts.pmem s → C s), C (apps t ts) := by
+    intro l t
+    induction t with
+    | var k =>
+        intro ts ih_ts
+        cases ts
+        simpa [apps] using hvar k
+    | func f =>
+        intro ts ih_ts
+        simpa [apps] using hfunc f ts ih_ts
+    | app t s ih_t ih_s =>
+        intro ts ih_ts
+        have hs : C s := ih_s [] (fun x hx => nomatch hx)
+        simpa [apps] using ih_t (s :: ts) (fun x hx =>
+          match hx with
+          | PSum.inl hx' => by cases hx'; exact hs
+          | PSum.inr hx' => ih_ts x hx')
+  fun t => h t [] (fun s hs => nomatch hs)
+
+def term.elim' {C : Type v}
+    (hvar : ∀ k : Nat, C)
+    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C) :
+    ∀ {l : Nat} (t : preterm L l) (ts : dvector (term L) l) (ih_ts : dvector C l), C
+  | _, .var k, _, _ => hvar k
+  | _, .func f, ts, ih_ts => hfunc f ts ih_ts
+  | _, .app t s, ts, ih_ts =>
+      term.elim' hvar hfunc t (s :: ts) (term.elim' hvar hfunc s [] [] :: ih_ts)
+
+def term.elim {C : Type v}
+    (hvar : ∀ k : Nat, C)
+    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C) :
+    ∀ t : term L, C :=
+  fun t => term.elim' hvar hfunc t [] []
+
+theorem term.elim'_apps {C : Type v}
+    (hvar : ∀ k : Nat, C)
+    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C)
+    {l : Nat} (t : preterm L l) (ts : dvector (term L) l) :
+    @term.elim' _ _ hvar hfunc 0 (apps t ts) [] [] =
+      @term.elim' _ _ hvar hfunc l t ts (ts.map (term.elim hvar hfunc)) := by
+  induction ts with
+  | nil =>
+      rfl
+  | cons x xs ih =>
+      simp [apps, term.elim, term.elim', ih]
+
+theorem term.elim_apps {C : Type v}
+    (hvar : ∀ k : Nat, C)
+    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C)
+    {l : Nat} (f : L.functions l) (ts : dvector (term L) l) :
+    @term.elim _ _ hvar hfunc (apps (preterm.func f) ts) =
+      hfunc f ts (ts.map (term.elim hvar hfunc)) := by
+  dsimp [term.elim]
+  rw [term.elim'_apps]
+  rfl
 
 namespace preterm
 

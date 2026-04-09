@@ -111,61 +111,61 @@ noncomputable def weakening2 {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
     · exact Or.inr (Or.inr hx)) h
 
 /-- Truncated implication introduction. -/
-noncomputable def impI' {Γ : Set (formula L)} {A B : formula L} (h : insert A Γ ⊢' B) :
+theorem impI' {Γ : Set (formula L)} {A B : formula L} (h : insert A Γ ⊢' B) :
     Γ ⊢' (A ⟹ B) := by
   rcases h with ⟨h⟩
   exact ⟨prf.impI h⟩
 
 /-- Truncated implication elimination. -/
-noncomputable def impE' {Γ : Set (formula L)} (A : formula L) {B : formula L}
+theorem impE' {Γ : Set (formula L)} (A : formula L) {B : formula L}
     (h₁ : Γ ⊢' (A ⟹ B)) (h₂ : Γ ⊢' A) : Γ ⊢' B := by
   rcases h₁ with ⟨h₁⟩
   rcases h₂ with ⟨h₂⟩
   exact ⟨prf.impE A h₁ h₂⟩
 
 /-- Truncated ex falso rule under an explicit negated assumption. -/
-noncomputable def falsumE' {Γ : Set (formula L)} {A : formula L} (h : insert (∼A) Γ ⊢' ⊥) :
+theorem falsumE' {Γ : Set (formula L)} {A : formula L} (h : insert (∼A) Γ ⊢' ⊥) :
     Γ ⊢' A := by
   rcases h with ⟨h⟩
   exact ⟨prf.falsumE h⟩
 
 /-- Truncated universal introduction. -/
-noncomputable def allI' {Γ : Set (formula L)} {A : formula L} (h : lift_formula1 '' Γ ⊢' A) :
+theorem allI' {Γ : Set (formula L)} {A : formula L} (h : lift_formula1 '' Γ ⊢' A) :
     Γ ⊢' ∀' A := by
   rcases h with ⟨h⟩
   exact ⟨prf.allI h⟩
 
 /-- Truncated universal elimination. -/
-noncomputable def allE₂' {Γ : Set (formula L)} {A : formula L} {t : term L} (h : Γ ⊢' ∀' A) :
+theorem allE₂' {Γ : Set (formula L)} {A : formula L} {t : term L} (h : Γ ⊢' ∀' A) :
     Γ ⊢' subst_formula A t 0 := by
   rcases h with ⟨h⟩
   exact ⟨prf.allE₂ A t h⟩
 
 /-- Truncated reflexivity of equality. -/
-noncomputable def ref' (Γ : Set (formula L)) (t : term L) : Γ ⊢' (t ≃ t) :=
+theorem ref' (Γ : Set (formula L)) (t : term L) : Γ ⊢' (t ≃ t) :=
   ⟨prf.ref Γ t⟩
 
 /-- Truncated equality substitution. -/
-noncomputable def subst₂' {Γ : Set (formula L)} (s t : term L) (f : formula L)
+theorem subst₂' {Γ : Set (formula L)} (s t : term L) (f : formula L)
     (h₁ : Γ ⊢' (s ≃ t)) (h₂ : Γ ⊢' subst_formula f s 0) : Γ ⊢' subst_formula f t 0 := by
   rcases h₁ with ⟨h₁⟩
   rcases h₂ with ⟨h₂⟩
   exact ⟨prf.subst₂ s t f h₁ h₂⟩
 
 /-- Weakening for truncated derivations. -/
-noncomputable def weakening' {Γ Δ : Set (formula L)} {f : formula L} (h₁ : Γ ⊆ Δ)
+theorem weakening' {Γ Δ : Set (formula L)} {f : formula L} (h₁ : Γ ⊆ Δ)
     (h₂ : Γ ⊢' f) : Δ ⊢' f := by
   rcases h₂ with ⟨h₂⟩
   exact ⟨weakening h₁ h₂⟩
 
 /-- One-step weakening for truncated derivations. -/
-noncomputable def weakening1' {Γ : Set (formula L)} {f₁ f₂ : formula L} (h : Γ ⊢' f₂) :
+theorem weakening1' {Γ : Set (formula L)} {f₁ f₂ : formula L} (h : Γ ⊢' f₂) :
     insert f₁ Γ ⊢' f₂ := by
   rcases h with ⟨h⟩
   exact ⟨weakening1 h⟩
 
 /-- Two-step weakening for truncated derivations. -/
-noncomputable def weakening2' {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
+theorem weakening2' {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
     (h : insert f₁ Γ ⊢' f₂) : insert f₁ (insert f₃ Γ) ⊢' f₂ := by
   rcases h with ⟨h⟩
   exact ⟨weakening2 h⟩
@@ -181,7 +181,7 @@ noncomputable def exfalso {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢ (�
   prf.falsumE (weakening1 h)
 
 /-- Truncated version of `exfalso`. -/
-noncomputable def exfalso' {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢' (⊥ : formula L)) :
+theorem exfalso' {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢' (⊥ : formula L)) :
     Γ ⊢' A := by
   rcases h with ⟨h⟩
   exact ⟨exfalso h⟩

@@ -1,13 +1,17 @@
 name = "flypitch"
 version = "0.1.0"
-keywords = ["math"]
 defaultTargets = ["Flypitch"]
+lintDriver = "batteries/runLinter"
 
 [leanOptions]
 pp.unicode.fun = true
+autoImplicit = false
 relaxedAutoImplicit = false
-weak.linter.mathlibStandardSet = true
 maxSynthPendingDepth = 3
+linter.missingDocs = false
+linter.dupNamespace = false
+weak.linter.flexible = true
+weak.linter.mathlibStandardSet = true
 
 [[require]]
 name = "checkdecls"

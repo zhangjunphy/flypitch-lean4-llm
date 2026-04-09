@@ -8,6 +8,18 @@ namespace Flypitch
 
 open fol
 
+/-!
+`Flypitch.Henkin` constructs the omega-chain of language extensions that adjoin witness
+constants, forms its colimit language `LInfty`, and compares the colimit syntax with the
+bounded syntax already present in the tower. The later part of the file packages these maps
+into the Henkin theory used by the completeness argument.
+-/
+
+set_option linter.missingDocs false
+set_option linter.style.longLine false
+set_option linter.unnecessarySimpa false
+set_option linter.unusedSimpArgs false
+
 namespace colimit
 
 local infixr:80 " ∘ᴸ " => fol.Lhom.comp
@@ -137,7 +149,7 @@ def wit' {L : Language.{u}} : bounded_formula L 1 → (languageStep L).constants
   languageFunctions.wit
 
 def inclusion {L : Language.{u}} : L →ᴸ languageStep L :=
-  ⟨fun {n} f => languageFunctions.inc f, fun {n} R => R⟩
+  ⟨fun {_n} f => languageFunctions.inc f, fun {_n} R => R⟩
 
 lemma inclusion_inj {L : Language.{u}} : Lhom.is_injective (@inclusion L) := by
   refine ⟨?_, ?_⟩
@@ -1070,7 +1082,8 @@ def iota {L : Language.{u}} {T : Theory L} (m : Nat) : Theory (LInfty L) :=
 def TInfty {L : Language.{u}} (T : Theory L) : Theory (LInfty L) :=
   ⟨⋃ n : Nat, (iota (T := T) n).carrier⟩
 
-@[reducible] def henkinLanguage {L : Language.{u}} (_T : Theory L) : Language.{u} :=
+@[reducible] def henkinLanguage {L : Language.{u}} (T : Theory L) : Language.{u} :=
+  let _ := T
   LInfty L
 
 def henkinLanguageOver {L : Language.{u}} {T : Theory L} :
@@ -1085,8 +1098,9 @@ lemma henkinLanguageOver_injective {L : Language.{u}} {T : Theory L} :
 def completeHenkinTheoryOver {L : Language.{u}} (T : Theory L) (hT : is_consistent T) : Type (u + 1) :=
   Σ' T' : Theory_over T hT, has_enough_constants T'.1 ∧ is_complete T'.1
 
-@[reducible] def henkinization {L : Language.{u}} {T : Theory L} (_hT : is_consistent T) :
+@[reducible] def henkinization {L : Language.{u}} {T : Theory L} (hT : is_consistent T) :
     Theory (henkinLanguage (L := L) T) :=
+  let _ := hT
   TInfty T
 
 noncomputable def witInfty {L : Language.{u}} (f : bounded_formula (LInfty L) 1) :

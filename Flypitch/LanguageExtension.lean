@@ -5,6 +5,14 @@ universe u
 namespace Flypitch
 namespace fol
 
+/-!
+`Flypitch.LanguageExtension` studies maps between first-order languages and how they act on
+terms, formulas, proofs, and structures. It also records the symbol-filtering and reflection
+constructions used later in the Henkin and completeness arguments.
+-/
+
+set_option linter.missingDocs false
+
 open Set
 
 local notation "[]" => dvector.nil
@@ -410,13 +418,13 @@ theorem bounded_formula_at_on_formula (ϕ : L →ᴸ L') : {l : Nat} → {f : pr
     (on_bounded_term ϕ t).fst = on_term ϕ t.fst :=
   rfl
 
-  @[simp] theorem on_bounded_term_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') {n l : Nat}
+  theorem on_bounded_term_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') {n l : Nat}
       (t : bounded_preterm L n l) :
       on_bounded_term (ψ ∘ᴸ ϕ) t = on_bounded_term ψ (on_bounded_term ϕ t) := by
     apply Subtype.ext
     simp
 
-  @[simp] theorem on_bounded_term_id {n l : Nat} (t : bounded_preterm L n l) :
+  theorem on_bounded_term_id {n l : Nat} (t : bounded_preterm L n l) :
       on_bounded_term (Lhom.id L) t = t := by
     apply Subtype.ext
     simp
@@ -429,13 +437,13 @@ theorem bounded_formula_at_on_formula (ϕ : L →ᴸ L') : {l : Nat} → {f : pr
     (on_bounded_formula ϕ f).fst = on_formula ϕ f.fst :=
   rfl
 
-  @[simp] theorem on_bounded_formula_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') {n l : Nat}
+  theorem on_bounded_formula_comp (ψ : L' →ᴸ L₂) (ϕ : L →ᴸ L') {n l : Nat}
       (f : bounded_preformula L n l) :
       on_bounded_formula (ψ ∘ᴸ ϕ) f = on_bounded_formula ψ (on_bounded_formula ϕ f) := by
     apply Subtype.ext
     simp
 
-  @[simp] theorem on_bounded_formula_id {n l : Nat} (f : bounded_preformula L n l) :
+  theorem on_bounded_formula_id {n l : Nat} (f : bounded_preformula L n l) :
       on_bounded_formula (Lhom.id L) f = f := by
     apply Subtype.ext
     simp
@@ -459,7 +467,7 @@ section FilterSymbols
 def filter_symbols_Lhom (p : L.symbols → Prop) : filter_symbols p →ᴸ L :=
   ⟨fun {n} f => f.1, fun {n} R => R.1⟩
 
-def is_injective_filter_symbols_Lhom (p : L.symbols → Prop) :
+theorem is_injective_filter_symbols_Lhom (p : L.symbols → Prop) :
     is_injective (filter_symbols_Lhom p) :=
   ⟨fun {n} => Subtype.val_injective, fun {n} => Subtype.val_injective⟩
 
@@ -728,9 +736,10 @@ theorem reduct_all_realize_sentence (ϕ : L →ᴸ L') {M : Structure L'} {T : T
 theorem reduct_nonempty_of_nonempty (ϕ : L →ᴸ L') {M : Structure L'} (h : Nonempty M) :
     Nonempty (reduct ϕ M) := h
 
-noncomputable def reflect_term (ϕ : L →ᴸ L') [has_decidable_range ϕ]
+noncomputable def reflect_term (ϕ : L →ᴸ L') [hdec : has_decidable_range ϕ]
     (t : term L') (m : Nat) : term L :=
   by
+    let _ := hdec
     classical
     exact
       term.elim
@@ -768,11 +777,11 @@ lemma reflect_term_const_neg (ϕ : L →ᴸ L') [has_decidable_range ϕ] {c : L'
     reflect_term ϕ (preterm.func c) m = &m := by
   simpa using reflect_term_apps_neg (ϕ := ϕ) hf ([] : dvector (term L') 0) m
 
-@[simp] lemma reflect_term_var (ϕ : L →ᴸ L') [has_decidable_range ϕ] (k m : Nat) :
+@[simp] lemma reflect_term_var (ϕ : L →ᴸ L') [hdec : has_decidable_range ϕ] (k m : Nat) :
     reflect_term ϕ (&k : term L') m = (&k : term L) ↑' 1 # m := by
   rfl
 
-@[simp] lemma reflect_term_on_term (ϕ : L →ᴸ L') [has_decidable_range ϕ]
+@[simp] lemma reflect_term_on_term (ϕ : L →ᴸ L') [hdec : has_decidable_range ϕ]
     (hϕ : is_injective ϕ) (t : term L) (m : Nat) :
     reflect_term ϕ (on_term ϕ t) m = t ↑' 1 # m := by
   classical
@@ -789,6 +798,7 @@ lemma reflect_term_const_neg (ϕ : L →ᴸ L') [has_decidable_range ϕ] {c : L'
 lemma reflect_term_lift_at (ϕ : L →ᴸ L') [has_decidable_range ϕ]
     (hϕ : is_injective ϕ) {n m m' : Nat} (h : m ≤ m') (t : term L') :
     reflect_term ϕ (t ↑' n # m) (m' + n) = reflect_term ϕ t m' ↑' n # m := by
+  let _ := hϕ
   classical
   refine term.rec (C := fun t : term L' =>
     reflect_term ϕ (t ↑' n # m) (m' + n) = reflect_term ϕ t m' ↑' n # m) ?_ ?_ t

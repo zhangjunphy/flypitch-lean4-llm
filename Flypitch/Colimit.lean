@@ -6,6 +6,17 @@ universe u v w
 namespace Flypitch
 namespace colimit
 
+/-!
+`Flypitch.Colimit` develops directed colimits for the concrete types used in the completeness
+argument. It packages directed diagrams, their quotient colimits, and the universal maps needed
+later for Henkin languages and their associated syntax.
+-/
+
+set_option linter.missingDocs false
+set_option linter.style.longLine false
+set_option linter.unnecessarySimpa false
+set_option linter.dupNamespace false
+
 structure directed_type : Type (u + 1) where
   carrier : Type u
   rel : carrier → carrier → Prop
@@ -23,11 +34,12 @@ structure directed_diagram (D : directed_type.{u}) : Type (max u v + 1) where
   h_mor : ∀ {x y z} {f₁ : D.rel x y} {f₂ : D.rel y z} {f₃ : D.rel x z},
     mor f₃ = mor f₂ ∘ mor f₁
 
+/-- The directed type whose objects are natural numbers ordered by `≤`. -/
 @[reducible] def directed_type_of_nat : directed_type :=
   { carrier := Nat
     rel := (· ≤ ·)
     h_reflexive := fun _ => le_rfl
-    h_transitive := fun {x y z} h₁ h₂ => Nat.le_trans h₁ h₂
+    h_transitive := fun {_ _ _} h₁ h₂ => Nat.le_trans h₁ h₂
     h_directed := fun x y => ⟨max x y, le_max_left _ _, le_max_right _ _⟩ }
 
 notation "ℕ'" => directed_type_of_nat
@@ -218,7 +230,7 @@ noncomputable def germ_rep {D : directed_type.{u}} {F : directed_diagram D} (a :
     canonical_map b.1 (F.mor h_rel a.2) = z := hz
     _ = canonical_map b.1 b.2 := hb.symm
 
-@[simp] lemma eq_mor_of_same_fiber' {D : directed_type.{u}} {F : directed_diagram D}
+lemma eq_mor_of_same_fiber' {D : directed_type.{u}} {F : directed_diagram D}
     (a_fst b_fst : D.carrier) (a_snd : F.obj a_fst) (b_snd : F.obj b_fst) {z : colimit F}
     (ha : (Quotient.mk'' (⟨a_fst, a_snd⟩ : coproduct_of_directed_diagram F) :
       Quotient (coproduct_setoid F)) = z)

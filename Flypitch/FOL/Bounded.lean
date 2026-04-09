@@ -41,7 +41,7 @@ instance : CoeOut (bounded_preterm L n l) (preterm L l) where
   t.1
 
 /-- Eta-expansion for bounded terms as subtypes. -/
-@[simp] theorem eta (t : bounded_preterm L n l) : Subtype.mk t.1 t.2 = t := by
+theorem eta (t : bounded_preterm L n l) : Subtype.mk t.1 t.2 = t := by
   cases t
   rfl
 
@@ -53,11 +53,11 @@ def cast (h : n ≤ m) (t : bounded_preterm L n l) : bounded_preterm L m l :=
 def cast1 (t : bounded_preterm L n l) : bounded_preterm L (n + 1) l :=
   cast (Nat.le_succ n) t
 
-@[simp] theorem cast_fst (h : n ≤ m) (t : bounded_preterm L n l) :
+theorem cast_fst (h : n ≤ m) (t : bounded_preterm L n l) :
     (t.cast h).fst = t.fst :=
   rfl
 
-@[simp] theorem cast1_fst (t : bounded_preterm L n l) :
+theorem cast1_fst (t : bounded_preterm L n l) :
     (t.cast1).fst = t.fst :=
   rfl
 
@@ -111,7 +111,7 @@ instance : CoeOut (bounded_preformula L n l) (preformula L l) where
   f.1
 
 /-- Eta-expansion for bounded formulas as subtypes. -/
-@[simp] theorem eta (f : bounded_preformula L n l) : Subtype.mk f.1 f.2 = f := by
+theorem eta (f : bounded_preformula L n l) : Subtype.mk f.1 f.2 = f := by
   cases f
   rfl
 
@@ -123,11 +123,11 @@ def cast (h : n ≤ m) (f : bounded_preformula L n l) : bounded_preformula L m l
 def cast1 (f : bounded_preformula L n l) : bounded_preformula L (n + 1) l :=
   cast (Nat.le_succ n) f
 
-@[simp] theorem cast_fst (h : n ≤ m) (f : bounded_preformula L n l) :
+theorem cast_fst (h : n ≤ m) (f : bounded_preformula L n l) :
     (f.cast h).fst = f.fst :=
   rfl
 
-@[simp] theorem cast1_fst (f : bounded_preformula L n l) :
+theorem cast1_fst (f : bounded_preformula L n l) :
     (f.cast1).fst = f.fst :=
   rfl
 
@@ -189,56 +189,56 @@ def bd_ex {n : Nat} (f : bounded_formula L (n + 1)) : bounded_formula L n :=
   | _, 0, f, [] => f
   | _, _ + 1, f, t :: ts => bd_apps_rel (bd_apprel f t) ts
 
-@[simp] theorem bd_var_fst {n : Nat} (k : Fin n) :
+theorem bd_var_fst {n : Nat} (k : Fin n) :
     (bd_var (L := L) k).fst = (&k.1 : term L) :=
   rfl
 
-@[simp] theorem bd_func_fst {n l : Nat} (f : L.functions l) :
+theorem bd_func_fst {n l : Nat} (f : L.functions l) :
     (bd_func (L := L) (n := n) f).fst = preterm.func f :=
   rfl
 
-@[simp] theorem bd_app_fst {n l : Nat} (t : bounded_preterm L n (l + 1)) (s : bounded_term L n) :
+theorem bd_app_fst {n l : Nat} (t : bounded_preterm L n (l + 1)) (s : bounded_term L n) :
     (bd_app t s).fst = preterm.app t.fst s.fst :=
   rfl
 
-@[simp] theorem bd_equal_fst {n : Nat} (t₁ t₂ : bounded_term L n) :
+theorem bd_equal_fst {n : Nat} (t₁ t₂ : bounded_term L n) :
     (bd_equal t₁ t₂).fst = (t₁.fst ≃ t₂.fst) :=
   rfl
 
-@[simp] theorem bd_rel_fst {n l : Nat} (R : L.relations l) :
+theorem bd_rel_fst {n l : Nat} (R : L.relations l) :
     (bd_rel (L := L) (n := n) R).fst = preformula.rel R :=
   rfl
 
-@[simp] theorem bd_apprel_fst {n l : Nat} (f : bounded_preformula L n (l + 1))
+theorem bd_apprel_fst {n l : Nat} (f : bounded_preformula L n (l + 1))
     (t : bounded_term L n) :
     (bd_apprel f t).fst = preformula.apprel f.fst t.fst :=
   rfl
 
-@[simp] theorem bd_imp_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
+theorem bd_imp_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
     (bd_imp f₁ f₂).fst = (f₁.fst ⟹ f₂.fst) :=
   rfl
 
-@[simp] theorem bd_all_fst {n : Nat} (f : bounded_formula L (n + 1)) :
+theorem bd_all_fst {n : Nat} (f : bounded_formula L (n + 1)) :
     (bd_all f).fst = ∀' f.fst :=
   rfl
 
-@[simp] theorem bd_not_fst {n : Nat} (f : bounded_formula L n) :
+theorem bd_not_fst {n : Nat} (f : bounded_formula L n) :
     (bd_not f).fst = ∼f.fst :=
   rfl
 
-@[simp] theorem bd_and_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
+theorem bd_and_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
     (bd_and f₁ f₂).fst = and f₁.fst f₂.fst :=
   rfl
 
-@[simp] theorem bd_or_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
+theorem bd_or_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
     (bd_or f₁ f₂).fst = or f₁.fst f₂.fst :=
   rfl
 
-@[simp] theorem bd_biimp_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
+theorem bd_biimp_fst {n : Nat} (f₁ f₂ : bounded_formula L n) :
     (bd_biimp f₁ f₂).fst = biimp f₁.fst f₂.fst :=
   rfl
 
-@[simp] theorem bd_ex_fst {n : Nat} (f : bounded_formula L (n + 1)) :
+theorem bd_ex_fst {n : Nat} (f : bounded_formula L (n + 1)) :
     (bd_ex f).fst = ex f.fst :=
   rfl
 

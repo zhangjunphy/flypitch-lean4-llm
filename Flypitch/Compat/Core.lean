@@ -5,6 +5,14 @@ universe u v w
 
 namespace Flypitch
 
+/-!
+`Flypitch.Compat.Core` collects small compatibility definitions that emulate the dependent-vector
+utilities used by the original development. They provide the lightweight data structures and
+arity helpers that the first-order syntax layer builds on.
+-/
+
+set_option linter.missingDocs false
+
 theorem Function.Injective.ne_iff {α β : Sort _} {f : α → β} (hf : Function.Injective f)
     {a₁ a₂ : α} : f a₁ ≠ f a₂ ↔ a₁ ≠ a₂ :=
   not_congr hf.eq_iff
@@ -27,7 +35,7 @@ variable {α : Type u} {β : Type v} {γ : Type w} {n : Nat}
 local notation "[]" => dvector.nil
 local infixr:67 " :: " => dvector.cons
 
-@[simp] theorem zero_eq : (xs : dvector α 0) → xs = []
+theorem zero_eq : (xs : dvector α 0) → xs = []
   | [] => rfl
 
 @[simp] def concat : {n : Nat} → dvector α n → α → dvector α (n + 1)
@@ -75,7 +83,7 @@ theorem mem_of_pmem {x : α} : {n : Nat} → {xs : dvector α n} → xs.pmem x �
   | _, [] => []
   | _, x :: xs => f x :: map f xs
 
-@[simp] theorem map_congr_pmem {f g : α → β} :
+theorem map_congr_pmem {f g : α → β} :
     {n : Nat} → {xs : dvector α n} →
       (h : ∀ x, xs.pmem x → f x = g x) → xs.map f = xs.map g
   | _, [], _ => rfl
@@ -83,7 +91,7 @@ theorem mem_of_pmem {x : α} : {n : Nat} → {xs : dvector α n} → xs.pmem x �
       have hs : xs.map f = xs.map g := map_congr_pmem (xs := xs) (fun y hy => h y (PSum.inr hy))
       simp [map, hs, h x (PSum.inl rfl)]
 
-@[simp] theorem map_congr_mem {f g : α → β} {n : Nat} {xs : dvector α n}
+theorem map_congr_mem {f g : α → β} {n : Nat} {xs : dvector α n}
     (h : ∀ x, x ∈ xs → f x = g x) : xs.map f = xs.map g :=
   map_congr_pmem (xs := xs) (fun x hx => h x (mem_of_pmem hx))
 

@@ -62,14 +62,14 @@ theorem subst_realize2_0 (v : Nat → S) (x x' : S) (n k : Nat) :
   | succ k =>
       by_cases hlt : k < n
       · have hs : k + 1 < n + 1 := Nat.succ_lt_succ hlt
-        simp [subst_realize, hlt, hs, Nat.succ_ne_zero]
+        simp [subst_realize, hlt, hs]
       · by_cases heq : k = n
         · subst heq
-          simp [subst_realize, Nat.succ_ne_zero]
+          simp [subst_realize]
         · have hgt : n < k := lt_of_le_of_ne (Nat.le_of_not_gt hlt) (Ne.symm heq)
           have hs : n + 1 < k + 1 := Nat.succ_lt_succ hgt
           have hkpos : 0 < k := lt_of_le_of_lt (Nat.zero_le n) hgt
-          simp [subst_realize, hlt, hgt, hs, hkpos, Nat.succ_ne_zero]
+          simp [subst_realize, hlt, hgt, hs, hkpos]
 
 /-- A first-order language is given by its function and relation symbols, indexed by arity. -/
 structure Language : Type (u + 1) where
@@ -117,7 +117,7 @@ theorem apps_eq_app {l : Nat} (t : preterm L (l + 1)) (s : term L) (ts : dvector
 noncomputable def term.rec {C : term L → Sort v}
     (hvar : ∀ k : Nat, C (&k))
     (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l)
-      (ih_ts : ∀ t, ts.pmem t → C t), C (apps (preterm.func f) ts)) :
+      (_ih_ts : ∀ t, ts.pmem t → C t), C (apps (preterm.func f) ts)) :
     ∀ t : term L, C t :=
   have h : ∀ {l : Nat} (t : preterm L l) (ts : dvector (term L) l)
       (ih_ts : ∀ s, ts.pmem s → C s), C (apps t ts) := by
@@ -141,9 +141,10 @@ noncomputable def term.rec {C : term L → Sort v}
 
 /-- Non-dependent eliminator on partially applied terms with accumulated recursive results. -/
 def term.elim' {C : Type v}
-    (hvar : ∀ k : Nat, C)
-    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C) :
-    ∀ {l : Nat} (t : preterm L l) (ts : dvector (term L) l) (ih_ts : dvector C l), C
+    (hvar : ∀ _k : Nat, C)
+    (hfunc : Π {l : Nat}
+      (_f : L.functions l) (_ts : dvector (term L) l) (_ih_ts : dvector C l), C) :
+    ∀ {l : Nat} (_t : preterm L l) (_ts : dvector (term L) l) (_ih_ts : dvector C l), C
   | _, .var k, _, _ => hvar k
   | _, .func f, ts, ih_ts => hfunc f ts ih_ts
   | _, .app t s, ts, ih_ts =>
@@ -151,15 +152,17 @@ def term.elim' {C : Type v}
 
 /-- Non-dependent eliminator on closed terms. -/
 def term.elim {C : Type v}
-    (hvar : ∀ k : Nat, C)
-    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C) :
-    ∀ t : term L, C :=
+    (hvar : ∀ _k : Nat, C)
+    (hfunc : Π {l : Nat}
+      (_f : L.functions l) (_ts : dvector (term L) l) (_ih_ts : dvector C l), C) :
+    ∀ _t : term L, C :=
   fun t => term.elim' hvar hfunc t [] []
 
 /-- Compatibility of `term.elim'` with `apps`. -/
 theorem term.elim'_apps {C : Type v}
-    (hvar : ∀ k : Nat, C)
-    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C)
+    (hvar : ∀ _k : Nat, C)
+    (hfunc : Π {l : Nat}
+      (_f : L.functions l) (_ts : dvector (term L) l) (_ih_ts : dvector C l), C)
     {l : Nat} (t : preterm L l) (ts : dvector (term L) l) :
     @term.elim' _ _ hvar hfunc 0 (apps t ts) [] [] =
       @term.elim' _ _ hvar hfunc l t ts (ts.map (term.elim hvar hfunc)) := by
@@ -171,8 +174,9 @@ theorem term.elim'_apps {C : Type v}
 
 /-- Compatibility of `term.elim` with function application. -/
 theorem term.elim_apps {C : Type v}
-    (hvar : ∀ k : Nat, C)
-    (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C)
+    (hvar : ∀ _k : Nat, C)
+    (hfunc : Π {l : Nat}
+      (_f : L.functions l) (_ts : dvector (term L) l) (_ih_ts : dvector C l), C)
     {l : Nat} (f : L.functions l) (ts : dvector (term L) l) :
     @term.elim _ _ hvar hfunc (apps (preterm.func f) ts) =
       hfunc f ts (ts.map (term.elim hvar hfunc)) := by
@@ -187,7 +191,7 @@ namespace preterm
   | _, _, rfl, func f => func f
   | _, _, rfl, app t₁ t₂ => app (change_arity' rfl t₁) t₂
 
-@[simp] theorem change_arity'_rfl : (t : preterm L l) → change_arity' rfl t = t
+@[simp] theorem change_arity'_rfl {l : Nat} : (t : preterm L l) → change_arity' rfl t = t
   | var _ => rfl
   | func _ => rfl
   | app t₁ t₂ => by simp [change_arity'_rfl, change_arity']
@@ -281,7 +285,7 @@ notation:95 t "[" s " // " n "]" => subst_term t s n
   | var k =>
       by_cases h : m ≤ k
       · have hk : m + 1 ≤ k + 1 := Nat.succ_le_succ h
-        simp [lift_term, lift_term_at, h, hk, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+        simp [lift_term, lift_term_at, h, hk, Nat.add_assoc, Nat.add_comm]
       · have hk : ¬m + 1 ≤ k + 1 := by
           intro hk
           exact h (Nat.succ_le_succ_iff.mp hk)
@@ -312,7 +316,7 @@ notation:95 t "[" s " // " n "]" => subst_term t s n
   | func f =>
       rfl
   | app t₁ t₂ ih₁ ih₂ =>
-      simp [lift_term, lift_term_at, ih₁, ih₂]
+      simp [lift_term, lift_term_at]
 
 /-- Commute two lifts when the second cutoff is no larger than the first. -/
 theorem lift_term_at2_small : ∀ {l : Nat} (t : preterm L l) (n n' : Nat) {m m' : Nat}, m' ≤ m →
@@ -321,7 +325,7 @@ theorem lift_term_at2_small : ∀ {l : Nat} (t : preterm L l) (n n' : Nat) {m m'
       by_cases hmk : m ≤ k
       · have hm'k : m' ≤ k := le_trans h hmk
         have hm'kn : m' ≤ k + n := le_trans hm'k (Nat.le_add_right k n)
-        simp [lift_term_at, hmk, hm'k, hm'kn, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+        simp [lift_term_at, hmk, hm'k, hm'kn, Nat.add_left_comm, Nat.add_comm]
         omega
       · by_cases hm'k : m' ≤ k
         · have hfalse : ¬m + n' ≤ k + n' := by
@@ -330,15 +334,19 @@ theorem lift_term_at2_small : ∀ {l : Nat} (t : preterm L l) (n n' : Nat) {m m'
           have hfalse' : ¬m + n' ≤ k := by
             intro hk
             exact hfalse (le_trans hk (Nat.le_add_right k n'))
-          simp [lift_term_at, hmk, hm'k, hfalse, hfalse', Nat.add_assoc, Nat.add_left_comm,
-            Nat.add_comm]
+          simp [lift_term_at, hmk, hm'k, Nat.add_left_comm, Nat.add_comm]
           omega
-        · simp [lift_term_at, hmk, hm'k, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+        · simp [lift_term_at, hmk, hm'k, Nat.add_comm]
           omega
   | _, .func f, n, n', m, m', h => rfl
   | _, .app t₁ t₂, n, n', m, m', h => by
-      change preterm.app (lift_term_at (lift_term_at t₁ n m) n' m') (lift_term_at (lift_term_at t₂ n m) n' m') =
-        preterm.app (lift_term_at (lift_term_at t₁ n' m') n (m + n')) (lift_term_at (lift_term_at t₂ n' m') n (m + n'))
+      change
+        preterm.app
+            (lift_term_at (lift_term_at t₁ n m) n' m')
+            (lift_term_at (lift_term_at t₂ n m) n' m') =
+          preterm.app
+            (lift_term_at (lift_term_at t₁ n' m') n (m + n'))
+            (lift_term_at (lift_term_at t₂ n' m') n (m + n'))
       rw [lift_term_at2_small t₁ n n' h, lift_term_at2_small t₂ n n' h]
 
 /-- Collapse two lifts when the second cutoff lies inside the first lifted block. -/
@@ -348,15 +356,19 @@ theorem lift_term_at2_medium : ∀ {l : Nat} (t : preterm L l) {n : Nat} (n' : N
   | _, &k, n, n', m, m', h₁, h₂ => by
       by_cases h : m ≤ k
       · have h₁' : m' ≤ k + n := le_trans h₂ (Nat.add_le_add_right h n)
-        simp [lift_term_at, h, h₁', Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+        simp [lift_term_at, h, h₁']
+        omega
       · have h₁' : ¬m' ≤ k := by
           intro hk
           exact h (le_trans h₁ hk)
-        simp [lift_term_at, h, h₁', Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+        simp [lift_term_at, h, h₁']
   | _, .func f, n, n', m, m', h₁, h₂ => rfl
   | _, .app t₁ t₂, n, n', m, m', h₁, h₂ => by
-      change preterm.app (lift_term_at (lift_term_at t₁ n m) n' m') (lift_term_at (lift_term_at t₂ n m) n' m') =
-        preterm.app (lift_term_at t₁ (n + n') m) (lift_term_at t₂ (n + n') m)
+      change
+        preterm.app
+            (lift_term_at (lift_term_at t₁ n m) n' m')
+            (lift_term_at (lift_term_at t₂ n m) n' m') =
+          preterm.app (lift_term_at t₁ (n + n') m) (lift_term_at t₂ (n + n') m)
       rw [lift_term_at2_medium t₁ n' h₁ h₂, lift_term_at2_medium t₂ n' h₁ h₂]
 
 /-- Global version of `lift_term_at2_medium`. -/
@@ -383,7 +395,7 @@ theorem lift_term_at2_large {l : Nat} (t : preterm L l) {n : Nat} (n' : Nat)
   have hn : n ≤ m' := le_trans (Nat.le_add_left n m) h
   have hm : m ≤ m' - n := Nat.le_sub_of_add_le h
   rw [lift_term_at2_small (t := t) (n := n') (n' := n) (m := m' - n) (m' := m) hm]
-  simpa [Nat.sub_add_cancel hn, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc]
+  simp [Nat.sub_add_cancel hn]
 
 /-- Substituting above the lift cutoff commutes with lifting. -/
 theorem lift_at_subst_term_large : ∀ {l : Nat} (t : preterm L l) (s : term L) {n₁ : Nat}
@@ -395,7 +407,8 @@ theorem lift_at_subst_term_large : ∀ {l : Nat} (t : preterm L l) (s : term L) 
         · have hkLift : ((&k : term L) ↑' n₂ # m) = (&(k + n₂) : term L) := by
             simp [lift_term_at, hm]
           have hkSub : ((&(k + n₂) : term L)[s // (n₁ + n₂)]) = (&(k + n₂) : term L) := by
-            simpa using (subst_term_var_lt (L := L) (s := s) (k := k + n₂) (n := n₁ + n₂) (by omega))
+            have hk : k + n₂ < n₁ + n₂ := by omega
+            simpa using (subst_term_var_lt (L := L) (s := s) (k := k + n₂) (n := n₁ + n₂) hk)
           have hkBase : ((&k : term L)[s // n₁]) = (&k : term L) := by
             simpa using (subst_term_var_lt (L := L) (s := s) (k := k) (n := n₁) hlt)
           rw [hkLift, hkSub, hkBase]
@@ -403,7 +416,8 @@ theorem lift_at_subst_term_large : ∀ {l : Nat} (t : preterm L l) (s : term L) 
         · have hkNoLift : ((&k : term L) ↑' n₂ # m) = (&k : term L) := by
             simp [lift_term_at, hm]
           have hkSub : ((&k : term L)[s // (n₁ + n₂)]) = (&k : term L) := by
-            simpa using (subst_term_var_lt (L := L) (s := s) (k := k) (n := n₁ + n₂) (by omega))
+            have hk : k < n₁ + n₂ := by omega
+            simpa using (subst_term_var_lt (L := L) (s := s) (k := k) (n := n₁ + n₂) hk)
           have hkBase : ((&k : term L)[s // n₁]) = (&k : term L) := by
             simpa using (subst_term_var_lt (L := L) (s := s) (k := k) (n := n₁) hlt)
           rw [hkNoLift, hkSub, hkBase]
@@ -411,9 +425,10 @@ theorem lift_at_subst_term_large : ∀ {l : Nat} (t : preterm L l) (s : term L) 
       · by_cases heq : k = n₁
         · subst k
           have hkL : ((&n₁ : term L) ↑' n₂ # m)[s // (n₁ + n₂)] = s ↑ (n₁ + n₂) := by
-            simp [lift_term_at, subst_term, subst_realize_var_eq, lift_term, h]
-          have hkR : (((&n₁ : term L)[s // n₁]) ↑' n₂ # m) = lift_term_at (lift_term s n₁) n₂ m := by
-            simp [subst_term, subst_realize_var_eq, lift_term]
+            simp [lift_term_at, lift_term, h]
+          have hkR :
+              (((&n₁ : term L)[s // n₁]) ↑' n₂ # m) = lift_term_at (lift_term s n₁) n₂ m := by
+            simp [lift_term]
           rw [hkL, hkR]
           simpa [lift_term] using (lift_term2_medium (t := s) (n := n₁) n₂ (m' := m) h).symm
         · have hgt : n₁ < k := lt_of_le_of_ne (Nat.le_of_not_gt hlt) (Ne.symm heq)
@@ -440,7 +455,8 @@ theorem lift_at_subst_term_large : ∀ {l : Nat} (t : preterm L l) (s : term L) 
 /-- Global lifting commutes with substitution above the lifted block. -/
 theorem lift_subst_term_large {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ : Nat) :
     (t ↑ n₂)[s // (n₁ + n₂)] = (t[s // n₁]) ↑ n₂ := by
-  simpa [lift_term] using lift_at_subst_term_large (t := t) (s := s) (n₁ := n₁) n₂ (m := 0) (Nat.zero_le _)
+  simpa [lift_term] using
+    lift_at_subst_term_large (t := t) (s := s) (n₁ := n₁) n₂ (m := 0) (Nat.zero_le _)
 
 /-- Commuted-index version of `lift_subst_term_large`. -/
 theorem lift_subst_term_large' {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ : Nat) :
@@ -525,11 +541,13 @@ theorem subst_term2 : ∀ {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n₁
           · by_cases heq2 : k = n₁ + n₂ + 1
             · subst k
               have hkL1 : ((&(n₁ + n₂ + 1) : term L)[s₁ // n₁]) = (&(n₁ + n₂) : term L) := by
-                simpa using
-                  (subst_term_var_gt (L := L) (s := s₁) (k := n₁ + n₂ + 1) (n := n₁) (by omega))
+                have hgt : n₁ < n₁ + n₂ + 1 := by omega
+                rw [subst_term_var_gt (L := L) (s := s₁) (k := n₁ + n₂ + 1) (n := n₁) hgt]
+                rfl
               have hkL2 : ((&(n₁ + n₂) : term L)[s₂ // (n₁ + n₂)]) = s₂ ↑ (n₁ + n₂) := by
                 simp [subst_term, subst_realize_var_eq, lift_term]
-              have hkR1 : ((&(n₁ + n₂ + 1) : term L)[s₂ // (n₁ + n₂ + 1)]) = s₂ ↑ (n₁ + n₂ + 1) := by
+              have hkR1 :
+                  ((&(n₁ + n₂ + 1) : term L)[s₂ // (n₁ + n₂ + 1)]) = s₂ ↑ (n₁ + n₂ + 1) := by
                 simp [subst_term, subst_realize_var_eq, lift_term]
               rw [hkL1, hkL2, hkR1]
               exact (lift_subst_term_medium (t := s₂) (s := s₁[s₂ // n₂]) n₁ n₂).symm
@@ -584,8 +602,7 @@ theorem subst_term2 : ∀ {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n₁
     (t ↑ 1)[s // 0] = t := by
   induction t with
   | var k =>
-      simpa [lift_term, lift_term_at] using
-        (subst_term_var_gt (L := L) (s := s) (k := k + 1) (n := 0) (Nat.succ_pos k))
+      simp [lift_term, lift_term_at]
   | func f =>
       rfl
   | app t₁ t₂ ih₁ ih₂ =>
@@ -616,25 +633,29 @@ theorem subst_term2 : ∀ {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n₁
         omega
       · by_cases hk0 : k = 0
         · subst hk0
-          simp [lift_term, lift_term_at, subst_term, subst_realize_var_eq]
+          simp [lift_term_at, subst_term, subst_realize_var_eq]
         · have hkpos : 0 < k := Nat.pos_of_ne_zero hk0
           have hkm : k ≤ m := Nat.lt_succ_iff.mp (lt_of_not_ge hmk)
           have hpred : k - 1 < m := lt_of_lt_of_le (Nat.pred_lt hk0) hkm
-          simp [lift_term, lift_term_at, subst_term, subst_realize_gt, hkpos, hmk,
+          simp [lift_term_at, subst_term, subst_realize_gt, hkpos, hmk,
             Nat.not_le_of_gt hpred]
   | func f =>
       rfl
   | app t₁ t₂ ih₁ ih₂ =>
-      change preterm.app ((t₁ ↑' n # (m + 1))[s ↑' n # m // 0]) ((t₂ ↑' n # (m + 1))[s ↑' n # m // 0]) =
-        preterm.app ((t₁[s // 0]) ↑' n # m) ((t₂[s // 0]) ↑' n # m)
+      change
+        preterm.app
+            ((t₁ ↑' n # (m + 1))[s ↑' n # m // 0])
+            ((t₂ ↑' n # (m + 1))[s ↑' n # m // 0]) =
+          preterm.app ((t₁[s // 0]) ↑' n # m) ((t₂[s // 0]) ↑' n # m)
       rw [ih₁, ih₂]
 
 /-- Substituting below the lift cutoff commutes with lifting the substituted term. -/
-theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ m : Nat),
-    (t ↑' n₁ # (m + n₂ + 1))[s ↑' n₁ # m // n₂] = (t[s // n₂]) ↑' n₁ # (m + n₂)
+  theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ m : Nat),
+      (t ↑' n₁ # (m + n₂ + 1))[s ↑' n₁ # m // n₂] = (t[s // n₂]) ↑' n₁ # (m + n₂)
   | _, &k, s, n₁, n₂, m => by
       by_cases hbig : m + n₂ + 1 ≤ k
-      · have hn₂k : n₂ < k := lt_of_le_of_lt (Nat.le_add_left n₂ m) (lt_of_lt_of_le (Nat.lt_succ_self _) hbig)
+      · have hn₂k : n₂ < k := by
+          exact lt_of_le_of_lt (Nat.le_add_left n₂ m) (lt_of_lt_of_le (Nat.lt_succ_self _) hbig)
         have hkn : n₂ < k + n₁ := lt_of_lt_of_le hn₂k (Nat.le_add_right k n₁)
         have hm : m + n₂ ≤ k - 1 := Nat.le_sub_of_add_le hbig
         have hk : 0 < k := lt_of_lt_of_le (Nat.zero_lt_succ _) hbig
@@ -667,7 +688,7 @@ theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) 
               have : n₂ < m + n₂ + 1 := by omega
               simp [lift_term_at, Nat.not_le_of_gt this]
             have hkSub : ((&n₂ : term L)[s ↑' n₁ # m // n₂]) = (s ↑' n₁ # m) ↑ n₂ := by
-              simp [subst_term, subst_realize_var_eq, lift_term]
+              simp [subst_term, lift_term]
             have hkBase : ((&n₂ : term L)[s // n₂]) = s ↑ n₂ := by
               simp [subst_term, subst_realize_var_eq, lift_term]
             rw [hkNoLift, hkSub, hkBase]
@@ -700,7 +721,7 @@ theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) 
       by_cases hk0 : k = 0
       · subst hk0
         have hlt : 0 < n + 1 := Nat.zero_lt_succ n
-        simp [subst_term, subst_realize_var_eq, subst_realize_lt, hlt, lift_term_zero]
+        simp [subst_term, subst_realize_var_eq, subst_realize_lt, hlt]
       · by_cases hlt : k < n + 1
         · have hkpos : 0 < k := Nat.pos_of_ne_zero hk0
           have hpred : k - 1 < n := by
@@ -710,7 +731,7 @@ theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) 
           by_cases heq : k = n + 1
           · subst heq
             have hkL : ((&(n + 1) : term L)[s₁ // 0][s₂ // n]) = s₂ ↑ n := by
-              simp [subst_term, subst_realize_var_eq, lift_term]
+              simp [subst_term, lift_term]
             have hkR : ((&(n + 1) : term L)[s₂ // (n + 1)][s₁[s₂ // n] // 0]) =
                 (s₂ ↑ (n + 1))[s₁[s₂ // n] // 0] := by
               simp [subst_term, subst_realize_var_eq, lift_term]
@@ -723,8 +744,7 @@ theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) 
               omega
             have hgt' : n < k - 1 := by
               omega
-            simp [subst_term, subst_realize_gt, hkpos, hkpred, hgt, hgt',
-              Nat.succ_pred_eq_of_pos hkpos, Nat.succ_pred_eq_of_pos hkpred]
+            simp [subst_term, subst_realize_gt, hkpos, hkpred, hgt, hgt']
   | func f =>
       rfl
   | app t₁ t₂ ih₁ ih₂ =>

@@ -11,6 +11,10 @@ and semantic notions attached to them. It also defines consistency, completeness
 basic operations for working inside a theory rather than an arbitrary set of formulas.
 -/
 
+set_option linter.missingDocs false
+set_option linter.style.longLine false
+set_option linter.style.openClassical false
+
 open Classical
 
 variable {L : Language.{u}}
@@ -252,7 +256,7 @@ def sfalsumE {T : Theory L} {A : sentence L} (h : insert (∼A) T ⊢ (⊥ : sen
   apply prf.falsumE
   simpa [sprf, Theory.fst_insert] using h
 
-@[reducible] def sfalsumE' {T : Theory L} {A : sentence L} (h : insert (∼A) T ⊢' (⊥ : sentence L)) : T ⊢' A := by
+theorem sfalsumE' {T : Theory L} {A : sentence L} (h : insert (∼A) T ⊢' (⊥ : sentence L)) : T ⊢' A := by
   rcases h with ⟨h⟩
   exact ⟨sfalsumE h⟩
 
@@ -312,7 +316,7 @@ def sprovable_of_provable {T : Theory L} {f : sentence L} (h : Theory.fst T ⊢ 
 /-- Forget that a sentence-level proof came from a theory. -/
 def provable_of_sprovable {T : Theory L} {f : sentence L} (h : T ⊢ f) : Theory.fst T ⊢ (f : formula L) := h
 
-@[reducible] def sprovable_of_sprf {T : Theory L} {f : sentence L} (h : T ⊢ f) : T ⊢' f := ⟨h⟩
+theorem sprovable_of_sprf {T : Theory L} {f : sentence L} (h : T ⊢ f) : T ⊢' f := ⟨h⟩
 
 /-- Eliminate the truncation in `sprovable`. -/
 theorem sprovable.elim {P : Prop} {T : Theory L} {f : sentence L} (ih : T ⊢ f → P) (h : T ⊢' f) : P := by
@@ -415,19 +419,19 @@ def is_complete (T : Theory L) : Prop :=
   is_consistent T ∧ ∀ f : sentence L, f ∈ T ∨ ∼f ∈ T
 
 /-- In a complete theory, every provable sentence is already an axiom. -/
-def mem_of_sprf {T : Theory L} (h : is_complete T) {f : sentence L} (hf : T ⊢ f) : f ∈ T := by
+theorem mem_of_sprf {T : Theory L} (h : is_complete T) {f : sentence L} (hf : T ⊢ f) : f ∈ T := by
   rcases h.2 f with hfT | hnfT
   · exact hfT
   · exfalso
     exact h.1 ⟨simpE f (saxm hnfT) hf⟩
 
 /-- Truncated version of `mem_of_sprf`. -/
-def mem_of_sprovable {T : Theory L} (h : is_complete T) {f : sentence L} (hf : T ⊢' f) : f ∈ T := by
+theorem mem_of_sprovable {T : Theory L} (h : is_complete T) {f : sentence L} (hf : T ⊢' f) : f ∈ T := by
   rcases hf with ⟨hf⟩
   exact mem_of_sprf h hf
 
 /-- In a complete theory, implication can be introduced from a meta-level implication on provability. -/
-@[reducible] def impI_of_is_complete {T : Theory L} (h : is_complete T) {f₁ f₂ : sentence L}
+theorem impI_of_is_complete {T : Theory L} (h : is_complete T) {f₁ f₂ : sentence L}
     (hf : T ⊢' f₁ → T ⊢' f₂) : T ⊢' (f₁ ⟹ f₂) := by
   apply simpI'
   rcases h.2 f₁ with hf₁ | hnf₁
@@ -437,7 +441,7 @@ def mem_of_sprovable {T : Theory L} (h : is_complete T) {f : sentence L} (hf : T
     exact ⟨sweakening1 (Classical.choice hbot)⟩
 
 /-- In a complete theory, non-provability of `f` yields provability of `¬f`. -/
-@[reducible] def notI_of_is_complete {T : Theory L} (h : is_complete T) {f : sentence L}
+theorem notI_of_is_complete {T : Theory L} (h : is_complete T) {f : sentence L}
     (hf : ¬ T ⊢' f) : T ⊢' ∼f := by
   apply impI_of_is_complete h
   intro hf'
@@ -449,7 +453,8 @@ abbrev Theory.Consistent (T : Theory L) : Prop := is_consistent T
 abbrev Theory.Complete (T : Theory L) : Prop := is_complete T
 
 /-- Consistent theory extensions ordered by inclusion. -/
-def TheoryOver (T : Theory L) (_hT : is_consistent T) : Type (u + 1) :=
+def TheoryOver (T : Theory L) (hT : is_consistent T) : Type (u + 1) :=
+  let _ := hT
   {T' : Theory L // Theory.Subset T T' ∧ is_consistent T'}
 
 /-- The base theory regarded as an extension of itself. -/

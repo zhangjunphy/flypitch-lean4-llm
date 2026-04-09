@@ -999,6 +999,146 @@ noncomputable def equivBoundedFormulaComparison {L : Language.{u}} :
   Equiv.ofBijective (boundedFormulaComparison' (L := L))
     boundedFormulaComparison'_bijective
 
+private theorem boundedTermAt_subst_closed {L : Language.{u}} :
+    ∀ {l n : Nat} (t : preterm L l) {s : term L},
+      bounded_term_at t (n + 1) → bounded_term_at s 0 → bounded_term_at (subst_term t s n) n
+  | _, n, .var k, s, hk, hs => by
+      by_cases hlt : k < n
+      · simpa [subst_term, subst_realize, hlt] using hlt
+      · by_cases hgt : n < k
+        · exfalso
+          exact Nat.not_lt_of_ge (Nat.le_of_lt_succ hk) hgt
+        · have hEq : k = n := Nat.le_antisymm (Nat.le_of_not_gt hgt) (Nat.le_of_not_gt hlt)
+          subst k
+          have hs' : bounded_term_at (lift_term s n) n := by
+            have hlift : lift_term s n = s := by
+              simpa [lift_term] using bounded_term_at_lift_irrel (t := s) n 0 hs
+            simpa [hlift] using bounded_term_at_mono (t := s) hs (Nat.zero_le n)
+          simpa [subst_term, subst_realize, hlt, hgt] using hs'
+  | _, _, .func _, _, _, _ => trivial
+  | _, n, .app t₁ t₂, s, ht, hs =>
+      ⟨boundedTermAt_subst_closed t₁ ht.1 hs, boundedTermAt_subst_closed t₂ ht.2 hs⟩
+
+private theorem boundedFormulaAt_subst_closed {L : Language.{u}} :
+    ∀ {l n : Nat} (f : preformula L l) {s : term L},
+      bounded_formula_at f (n + 1) → bounded_term_at s 0 → bounded_formula_at (subst_formula f s n) n
+  | _, _, .falsum, _, _, _ => trivial
+  | _, n, .equal t₁ t₂, s, hf, hs =>
+      ⟨boundedTermAt_subst_closed t₁ hf.1 hs, boundedTermAt_subst_closed t₂ hf.2 hs⟩
+  | _, _, .rel _, _, _, _ => trivial
+  | _, n, .apprel f t, s, hf, hs =>
+      ⟨boundedFormulaAt_subst_closed f hf.1 hs, boundedTermAt_subst_closed t hf.2 hs⟩
+  | _, n, .imp f₁ f₂, s, hf, hs =>
+      ⟨boundedFormulaAt_subst_closed f₁ hf.1 hs, boundedFormulaAt_subst_closed f₂ hf.2 hs⟩
+  | _, n, .all f, s, hf, hs => by
+      simpa [subst_formula] using boundedFormulaAt_subst_closed (n := n + 1) f hf hs
+
+@[reducible] def witProperty {L : Language.{u}} (f : bounded_formula L 1) (c : L.constants) :
+    sentence L :=
+  ⟨(bd_ex f).fst ⟹ subst_formula f.fst (bd_const c).fst 0,
+    by
+      simpa [bounded_formula_at] using
+        (And.intro (bd_ex f).2
+          (boundedFormulaAt_subst_closed (n := 0) f.fst f.2 (bd_const (L := L) (n := 0) c).2))⟩
+
+def henkinTheoryStep {L : Language.{u}} (T : Theory L) : Theory (languageStep L) :=
+  Lhom.Theory_induced (inclusion (L := L)) T ∪
+    ((fun f : bounded_formula L 1 =>
+        witProperty
+          (L := languageStep L)
+          (Lhom.on_bounded_formula (inclusion (L := L)) f)
+          (wit' f)) '' (Set.univ : Set (bounded_formula L 1)))
+
+def henkinTheoryChain {L : Language.{u}} (T : Theory L) :
+    (n : Nat) → Theory (chainObjects L n)
+  | 0 => T
+  | n + 1 => henkinTheoryStep (henkinTheoryChain T n)
+
+def iota {L : Language.{u}} {T : Theory L} (m : Nat) : Theory (LInfty L) :=
+  Lhom.Theory_induced (canonicalMap (L := L) m) (henkinTheoryChain T m)
+
+def TInfty {L : Language.{u}} (T : Theory L) : Theory (LInfty L) :=
+  ⟨⋃ n : Nat, (iota (T := T) n).carrier⟩
+
+@[reducible] def henkinLanguage {L : Language.{u}} (_T : Theory L) : Language.{u} :=
+  LInfty L
+
+def henkinLanguageOver {L : Language.{u}} {T : Theory L} :
+    L →ᴸ henkinLanguage (L := L) T := by
+  change chainObjects L 0 →ᴸ LInfty L
+  exact canonicalMap (L := L) 0
+
+lemma henkinLanguageOver_injective {L : Language.{u}} {T : Theory L} :
+    Lhom.is_injective (henkinLanguageOver (L := L) (T := T)) := by
+  simpa [henkinLanguageOver] using canonicalMap_inj (L := L) 0
+
+noncomputable def witInfty {L : Language.{u}} (f : bounded_formula (LInfty L) 1) :
+    Σ c : (LInfty L).constants,
+      Σ f' : Σ' x : colimit (boundedFormulaChain' (L := L)),
+        equivBoundedFormulaComparison (L := L) x = f,
+        Σ' f'' : coproduct_of_directed_diagram (boundedFormulaChain' (L := L)),
+          (Quotient.mk'' f'' : colimit (boundedFormulaChain' (L := L))) = f'.1 ∧
+            c = (canonicalMap (L := L) (f''.1 + 1)).on_function (wit' f''.2) := by
+  let f' : Σ' x : colimit (boundedFormulaChain' (L := L)),
+      equivBoundedFormulaComparison (L := L) x = f :=
+    ⟨(equivBoundedFormulaComparison (L := L)).symm f,
+      (equivBoundedFormulaComparison (L := L)).apply_symm_apply f⟩
+  let f'' := germ_rep f'.1
+  refine ⟨(canonicalMap (L := L) (f''.1.1 + 1)).on_function (wit' f''.1.2), f', f''.1, ?_, rfl⟩
+  simpa using f''.2
+
+lemma henkinTheoryChainInclusionStep {L : Language.{u}} {T : Theory L} {i : Nat}
+    {f : sentence (chainObjects L i)} (hf : f ∈ henkinTheoryChain T i) :
+    Lhom.on_sentence (inclusion (L := chainObjects L i)) f ∈ henkinTheoryChain T (i + 1) := by
+  dsimp [henkinTheoryChain, henkinTheoryStep]
+  exact Or.inl (Set.mem_image_of_mem _ hf)
+
+lemma henkinTheoryChainInclusion {L : Language.{u}} {T : Theory L} :
+    ∀ {i j : Nat} (h : i ≤ j) {f : sentence (chainObjects L i)},
+      f ∈ henkinTheoryChain T i →
+        Lhom.on_sentence (chainMaps L i j h) f ∈ henkinTheoryChain T j
+  | i, 0, h, f, hf => by
+      have hi : i = 0 := Nat.eq_zero_of_le_zero h
+      subst hi
+      simpa [henkinTheoryChain, chainMaps] using hf
+  | i, j + 1, h, f, hf => by
+      by_cases hij : i = j + 1
+      · subst hij
+        simpa [henkinTheoryChain, chainMaps] using hf
+      · have hij' : i ≤ j := Nat.lt_succ_iff.mp (lt_of_le_of_ne h hij)
+        have ih := henkinTheoryChainInclusion (j := j) hij' hf
+        have hmap :
+            Lhom.on_sentence (chainMaps L i (j + 1) h) f =
+              Lhom.on_sentence (inclusion (L := chainObjects L j))
+                (Lhom.on_sentence (chainMaps L i j hij') f) := by
+          apply Subtype.ext
+          simp [chainMaps, hij, Lhom.comp]
+        rw [hmap]
+        exact henkinTheoryChainInclusionStep ih
+
+lemma iotaInclusionOfLe {L : Language.{u}} {T : Theory L} :
+    ∀ {i j : Nat} (h : i ≤ j), Theory.Subset (iota (T := T) i) (iota (T := T) j)
+  | i, j, h => by
+      intro ψ hψ
+      change ψ ∈
+        (Lhom.on_sentence (canonicalMap (L := L) i) ''
+          (henkinTheoryChain T i).carrier) at hψ
+      rcases hψ with ⟨f, hf, rfl⟩
+      refine ⟨Lhom.on_sentence (chainMaps L i j h) f, ?_, ?_⟩
+      · exact henkinTheoryChainInclusion (T := T) h hf
+      · apply Subtype.ext
+        calc
+          (Lhom.on_sentence (canonicalMap (L := L) j)
+              (Lhom.on_sentence (chainMaps L i j h) f) : sentence (LInfty L)).1 =
+              (((canonicalMap (L := L) j) ∘ᴸ (chainMaps L i j h)).on_formula
+                (f : formula (chainObjects L i))) := by
+                  simp [Lhom.on_sentence_fst, Lhom.on_formula_comp, Lhom.comp]
+          _ = (canonicalMap (L := L) i).on_formula (f : formula (chainObjects L i)) := by
+                simpa [coconeOfLInfty, canonicalMap, languageChain] using
+                  congrArg
+                    (fun ϕ => @Lhom.on_formula _ _ ϕ 0 (f : formula (chainObjects L i)))
+                    ((coconeOfLInfty (L := L)).h_compat h).symm
+
 end henkin
 
 end Flypitch

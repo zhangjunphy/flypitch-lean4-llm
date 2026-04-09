@@ -74,7 +74,8 @@ The upstream project breaks into two large branches that meet in `zfc.lean`.
 - [x] Port Henkin term/formula/bounded-formula chains and comparison maps into `LInfty`.
 - [x] Prove bijectivity of the term/formula comparison maps into `LInfty`.
 - [x] Port bounded-term/bounded-formula comparison bijectivity and the induced equivalence at bounded formulas.
-- [ ] Port the Henkin witness-extraction layer and theory chain.
+- [x] Port Henkin witness properties, `witInfty`, and the raw `ι`/`T_infty` theory-chain scaffolding.
+- [ ] Prove consistency of the Henkin theory step and `ι`-chain, then finish the henkinization/completed-theory bridge.
 - [ ] Port `pSet_ordinal` as the first forcing-side hard dependency.
 - [ ] Port the topology/regular-open/collapse stack.
 - [ ] Port Boolean-valued models.
@@ -109,10 +110,15 @@ The next critical blocker is still the remaining theory-level half of upstream `
 but the frontier has moved forward again. The repository now has the directed-colimit,
 language-extension, Henkin language-chain infrastructure, the induced comparison maps into
 `LInfty`, bijectivity for term/formula/bounded-term/bounded-formula comparison maps, and the
-bounded-formula equivalence needed to choose representatives.
+bounded-formula equivalence needed to choose representatives. It also now has the witness
+property definition, the extracted `witInfty` representative, the recursive Henkin theory step,
+the raw `ι` chain inside `Theory (LInfty L)`, the induced inclusion lemmas along that chain,
+and the `T_infty` union theory definition.
 
-What is still missing is the actual witness-extraction layer built on top of that equivalence,
-followed by the Henkin theory chain, union construction, and bridge to a completed Henkin theory.
+What is still missing is the consistency/reflection side: proving the Henkin theory step preserves
+consistency, reflecting inconsistency back along the `ι` embeddings, packaging the chain as a
+consistent directed union, and then finishing the bridge from `henkinization` to a completed
+Henkin theory.
 
 The next Lean 4 tranche is:
 

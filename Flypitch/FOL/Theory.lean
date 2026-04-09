@@ -370,6 +370,21 @@ def mem_of_sprovable {T : Theory L} (h : is_complete T) {f : sentence L} (hf : T
   rcases hf with ⟨hf⟩
   exact mem_of_sprf h hf
 
+@[reducible] def impI_of_is_complete {T : Theory L} (h : is_complete T) {f₁ f₂ : sentence L}
+    (hf : T ⊢' f₁ → T ⊢' f₂) : T ⊢' (f₁ ⟹ f₂) := by
+  apply simpI'
+  rcases h.2 f₁ with hf₁ | hnf₁
+  · exact ⟨sweakening1 (Classical.choice (hf ⟨saxm hf₁⟩))⟩
+  · apply sfalsumE'
+    let hbot : insert f₁ T ⊢' (⊥ : sentence L) := simpE' f₁ ⟨sweakening1 (saxm hnf₁)⟩ ⟨saxm1⟩
+    exact ⟨sweakening1 (Classical.choice hbot)⟩
+
+@[reducible] def notI_of_is_complete {T : Theory L} (h : is_complete T) {f : sentence L}
+    (hf : ¬ T ⊢' f) : T ⊢' ∼f := by
+  apply impI_of_is_complete h
+  intro hf'
+  exact False.elim (hf hf')
+
 abbrev Theory.Consistent (T : Theory L) : Prop := is_consistent T
 abbrev Theory.Complete (T : Theory L) : Prop := is_complete T
 

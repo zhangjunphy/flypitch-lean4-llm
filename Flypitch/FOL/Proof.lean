@@ -145,6 +145,97 @@ noncomputable def weakening2' {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L
   rcases h with ⟨h⟩
   exact ⟨weakening2 h⟩
 
+noncomputable def deduction {Γ : Set (formula L)} {A B : formula L} (h : Γ ⊢ (A ⟹ B)) :
+    insert A Γ ⊢ B :=
+  prf.impE A (weakening1 h) axm1
+
+noncomputable def exfalso {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢ (⊥ : formula L)) :
+    Γ ⊢ A :=
+  prf.falsumE (weakening1 h)
+
+noncomputable def exfalso' {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢' (⊥ : formula L)) :
+    Γ ⊢' A := by
+  rcases h with ⟨h⟩
+  exact ⟨exfalso h⟩
+
+noncomputable def notI {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢ (A ⟹ (⊥ : formula L))) :
+    Γ ⊢ (∼A) := by
+  simpa [fol.not] using h
+
+noncomputable def andI {Γ : Set (formula L)} {f₁ f₂ : formula L}
+    (h₁ : Γ ⊢ f₁) (h₂ : Γ ⊢ f₂) : Γ ⊢ and f₁ f₂ := by
+  apply prf.impI
+  apply prf.impE f₂
+  · apply prf.impE f₁
+    · exact axm1
+    · exact weakening1 h₁
+  · exact weakening1 h₂
+
+noncomputable def andE1 {Γ : Set (formula L)} {f₁ : formula L} (f₂ : formula L)
+    (h : Γ ⊢ and f₁ f₂) : Γ ⊢ f₁ := by
+  apply prf.falsumE
+  apply prf.impE (f₁ ⟹ ∼f₂) (weakening1 h)
+  apply prf.impI
+  apply exfalso
+  exact prf.impE f₁ axm2 axm1
+
+noncomputable def andE2 {Γ : Set (formula L)} (f₁ : formula L) {f₂ : formula L}
+    (h : Γ ⊢ and f₁ f₂) : Γ ⊢ f₂ := by
+  apply prf.falsumE
+  apply prf.impE (f₁ ⟹ ∼f₂) (weakening1 h)
+  apply prf.impI
+  exact axm2
+
+noncomputable def orI1 {Γ : Set (formula L)} {A B : formula L} (h : Γ ⊢ A) :
+    Γ ⊢ or A B := by
+  apply prf.impI
+  apply exfalso
+  exact prf.impE _ axm1 (weakening1 h)
+
+noncomputable def orI2 {Γ : Set (formula L)} {A B : formula L} (h : Γ ⊢ B) :
+    Γ ⊢ or A B := by
+  simpa [fol.or] using prf.impI (weakening1 h)
+
+noncomputable def orE {Γ : Set (formula L)} {A B C : formula L}
+    (h₁ : Γ ⊢ or A B) (h₂ : insert A Γ ⊢ C) (h₃ : insert B Γ ⊢ C) : Γ ⊢ C := by
+  apply prf.falsumE
+  apply prf.impE C
+  · exact axm1
+  · apply prf.impE B
+    · exact prf.impI (weakening2 h₃)
+    · apply prf.impE _ (weakening1 h₁)
+      exact prf.impI (prf.impE _ axm2 (weakening2 h₂))
+
+noncomputable def biimpI {Γ : Set (formula L)} {f₁ f₂ : formula L}
+    (h₁ : insert f₁ Γ ⊢ f₂) (h₂ : insert f₂ Γ ⊢ f₁) : Γ ⊢ biimp f₁ f₂ := by
+  apply andI
+  · exact prf.impI h₁
+  · exact prf.impI h₂
+
+noncomputable def biimpE1 {Γ : Set (formula L)} {f₁ f₂ : formula L}
+    (h : Γ ⊢ biimp f₁ f₂) : insert f₁ Γ ⊢ f₂ :=
+  deduction (andE1 (f₂ := (f₂ ⟹ f₁)) h)
+
+noncomputable def biimpE2 {Γ : Set (formula L)} {f₁ f₂ : formula L}
+    (h : Γ ⊢ biimp f₁ f₂) : insert f₂ Γ ⊢ f₁ :=
+  deduction (andE2 (f₁ := (f₁ ⟹ f₂)) h)
+
+noncomputable def exI {Γ : Set (formula L)} {f : formula L} (t : term L)
+    (h : Γ ⊢ subst_formula f t 0) : Γ ⊢ ex f := by
+  apply prf.impI
+  apply prf.impE (subst_formula f t 0)
+  · exact prf.allE₂ (∼f) t axm1
+  · exact weakening1 h
+
+noncomputable def exE {Γ : Set (formula L)} {f₁ f₂ : formula L} (h₁ : Γ ⊢ ex f₁)
+    (h₂ : insert f₁ (lift_formula1 '' Γ) ⊢ lift_formula1 f₂) : Γ ⊢ f₂ := by
+  apply prf.falsumE
+  apply prf.impE _ (weakening1 h₁)
+  apply prf.allI
+  apply prf.impI
+  rw [Set.image_insert_eq]
+  exact prf.impE _ axm2 (weakening2 h₂)
+
 noncomputable def prf_lift {Γ : Set (formula L)} {f : formula L} (n m : Nat) (h : Γ ⊢ f) :
     Set.image (fun g : formula L => lift_formula_at g n m) Γ ⊢ lift_formula_at f n m := by
   induction h generalizing m with

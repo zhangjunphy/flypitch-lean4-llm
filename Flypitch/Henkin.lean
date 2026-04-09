@@ -1041,6 +1041,16 @@ private theorem boundedFormulaAt_subst_closed {L : Language.{u}} :
         (And.intro (bd_ex f).2
           (boundedFormulaAt_subst_closed (n := 0) f.fst f.2 (bd_const (L := L) (n := 0) c).2))⟩
 
+def has_enough_constants {L : Language.{u}} (T : Theory L) : Prop :=
+  ∃ C : bounded_formula L 1 → L.constants, ∀ f : bounded_formula L 1, T ⊢' witProperty f (C f)
+
+lemma has_enough_constants.intro {L : Language.{u}} (T : Theory L)
+    (H : ∀ f : bounded_formula L 1, ∃ c : L.constants, T ⊢' witProperty f c) :
+    has_enough_constants T := by
+  classical
+  choose C hC using H
+  exact ⟨C, hC⟩
+
 def henkinTheoryStep {L : Language.{u}} (T : Theory L) : Theory (languageStep L) :=
   Lhom.Theory_induced (inclusion (L := L)) T ∪
     ((fun f : bounded_formula L 1 =>
@@ -1072,6 +1082,13 @@ lemma henkinLanguageOver_injective {L : Language.{u}} {T : Theory L} :
     Lhom.is_injective (henkinLanguageOver (L := L) (T := T)) := by
   simpa [henkinLanguageOver] using canonicalMap_inj (L := L) 0
 
+def completeHenkinTheoryOver {L : Language.{u}} (T : Theory L) (hT : is_consistent T) : Type (u + 1) :=
+  Σ' T' : Theory_over T hT, has_enough_constants T'.1 ∧ is_complete T'.1
+
+@[reducible] def henkinization {L : Language.{u}} {T : Theory L} (_hT : is_consistent T) :
+    Theory (henkinLanguage (L := L) T) :=
+  TInfty T
+
 noncomputable def witInfty {L : Language.{u}} (f : bounded_formula (LInfty L) 1) :
     Σ c : (LInfty L).constants,
       Σ f' : Σ' x : colimit (boundedFormulaChain' (L := L)),
@@ -1086,6 +1103,128 @@ noncomputable def witInfty {L : Language.{u}} (f : bounded_formula (LInfty L) 1)
   let f'' := germ_rep f'.1
   refine ⟨(canonicalMap (L := L) (f''.1.1 + 1)).on_function (wit' f''.1.2), f', f''.1, ?_, rfl⟩
   simpa using f''.2
+
+lemma inIotaOfInStep {L : Language.{u}} {T : Theory L} (i : Nat)
+    (f : sentence (chainObjects L (i + 1))) (hf : f ∈ henkinTheoryChain T (i + 1)) :
+    Lhom.on_sentence (canonicalMap (L := L) (i + 1)) f ∈ iota (T := T) (i + 1) :=
+  Set.mem_image_of_mem _ hf
+
+@[simp] lemma henkinizationIsHenkin {L : Language.{u}} {T : Theory L} (hT : is_consistent T) :
+    has_enough_constants (henkinization (L := L) (T := T) hT) := by
+  apply has_enough_constants.intro
+  intro f
+  rcases witInfty (L := L) f with ⟨c, ⟨⟨f', hf'⟩, ⟨⟨i, f''⟩, hrep, hc⟩⟩⟩
+  refine ⟨c, ?_⟩
+  refine ⟨saxm ?_⟩
+  unfold henkinization TInfty
+  refine Set.mem_iUnion.mpr ⟨i + 1, ?_⟩
+  have hstep :
+      witProperty
+        (L := chainObjects L (i + 1))
+        (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'')
+        (wit' f'') ∈ henkinTheoryChain T (i + 1) := by
+    dsimp [henkinTheoryChain, henkinTheoryStep]
+    exact Or.inr (Set.mem_image_of_mem _ (by simp))
+  have hstage :
+      Lhom.on_bounded_formula (canonicalMap (L := L) i) f'' = f := by
+    have hq :
+        canonical_map (F := boundedFormulaChain' (L := L)) i f'' =
+          (Quotient.mk'' (⟨i, f''⟩ : coproduct_of_directed_diagram (boundedFormulaChain' (L := L))) :
+            colimit (boundedFormulaChain' (L := L))) := by
+      simpa using
+        (canonical_map_quotient (F := boundedFormulaChain' (L := L))
+          (⟨i, f''⟩ : coproduct_of_directed_diagram (boundedFormulaChain' (L := L))))
+    have hcmp :
+        boundedFormulaComparison' (L := L)
+          (canonical_map (F := boundedFormulaChain' (L := L)) i f'') = f := by
+      rw [hq]
+      rw [hrep]
+      exact hf'
+    simpa [boundedFormulaComparison', boundedFormulaComparison, coconeOfBoundedFormulaPrimeLInfty] using hcmp
+  have hsucc : chainMaps L i (i + 1) (by simp) = inclusion (L := chainObjects L i) := by
+    have hself : chainMaps L i i (Nat.le_refl i) = Lhom.id (chainObjects L i) := by
+      induction i with
+      | zero =>
+          simp [chainMaps]
+      | succ i ih =>
+          simp [chainMaps]
+    calc
+      chainMaps L i (i + 1) (Nat.le_succ i) =
+        inclusion (L := chainObjects L i) ∘ᴸ chainMaps L i i (Nat.le_refl i) := by
+          have hneq : i ≠ i + 1 := Nat.ne_of_lt (Nat.lt_succ_self i)
+          simp [chainMaps, hneq, Lhom.comp]
+      _ = inclusion (L := chainObjects L i) := by
+          rw [hself]
+          simp
+  have hstageSucc :
+      Lhom.on_bounded_formula (canonicalMap (L := L) (i + 1))
+        (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'') = f := by
+    have hcompat :
+        Lhom.on_bounded_formula
+            ((canonicalMap (L := L) (i + 1)) ∘ᴸ (chainMaps L i (i + 1) (Nat.le_succ i))) f'' =
+          Lhom.on_bounded_formula (canonicalMap (L := L) i) f'' := by
+      simpa [canonicalMap, coconeOfLInfty, languageChain, Lhom.comp] using
+        congrArg
+          (fun ϕ => @Lhom.on_bounded_formula _ _ ϕ 1 0 f'')
+          ((coconeOfLInfty (L := L)).h_compat (Nat.le_succ i)).symm
+    calc
+      Lhom.on_bounded_formula (canonicalMap (L := L) (i + 1))
+          (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'') =
+        Lhom.on_bounded_formula
+          ((canonicalMap (L := L) (i + 1)) ∘ᴸ (inclusion (L := chainObjects L i))) f'' := by
+            simp [Lhom.comp]
+      _ = Lhom.on_bounded_formula
+          ((canonicalMap (L := L) (i + 1)) ∘ᴸ (chainMaps L i (i + 1) (by simp))) f'' := by
+            rw [hsucc]
+      _ = Lhom.on_bounded_formula (canonicalMap (L := L) i) f'' := by
+            exact hcompat
+      _ = f := hstage
+  have hex :
+      (bd_ex
+        (Lhom.on_bounded_formula (canonicalMap (L := L) (i + 1))
+          (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f''))).fst =
+        (bd_ex f).fst := by
+    simpa using congrArg (fun g => (bd_ex g).fst) hstageSucc
+  have hsub :
+      subst_formula
+          (Lhom.on_bounded_formula (canonicalMap (L := L) (i + 1))
+            (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'')).fst
+          (bd_const (L := LInfty L) (n := 0)
+            ((canonicalMap (L := L) (i + 1)).on_function (wit' f''))).fst 0 =
+        subst_formula f.fst (bd_const (L := LInfty L) (n := 0) c).fst 0 := by
+    calc
+      subst_formula
+          (Lhom.on_bounded_formula (canonicalMap (L := L) (i + 1))
+            (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'')).fst
+          (bd_const (L := LInfty L) (n := 0)
+            ((canonicalMap (L := L) (i + 1)).on_function (wit' f''))).fst 0 =
+        subst_formula
+          (Lhom.on_bounded_formula (canonicalMap (L := L) (i + 1))
+            (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'')).fst
+          (bd_const (L := LInfty L) (n := 0) c).fst 0 := by
+            simp [hc]
+      _ = subst_formula f.fst (bd_const (L := LInfty L) (n := 0) c).fst 0 := by
+            simpa using congrArg
+              (fun g => subst_formula g.fst (bd_const (L := LInfty L) (n := 0) c).fst 0)
+              hstageSucc
+  have himage :
+      Lhom.on_sentence (canonicalMap (L := L) (i + 1))
+          (witProperty
+            (L := chainObjects L (i + 1))
+            (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'')
+            (wit' f'')) =
+        witProperty (L := LInfty L) f c := by
+    apply Subtype.ext
+    simpa [witProperty] using And.intro hex hsub
+  have hiota :
+      Lhom.on_sentence (canonicalMap (L := L) (i + 1))
+          (witProperty
+            (L := chainObjects L (i + 1))
+            (Lhom.on_bounded_formula (inclusion (L := chainObjects L i)) f'')
+            (wit' f'')) ∈ (iota (T := T) (i + 1)).carrier := by
+    exact inIotaOfInStep (L := L) (T := T) i _ hstep
+  rw [himage] at hiota
+  exact hiota
 
 lemma henkinTheoryChainInclusionStep {L : Language.{u}} {T : Theory L} {i : Nat}
     {f : sentence (chainObjects L i)} (hf : f ∈ henkinTheoryChain T i) :

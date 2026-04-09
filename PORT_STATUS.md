@@ -74,7 +74,7 @@ The upstream project breaks into two large branches that meet in `zfc.lean`.
 - [x] Port Henkin term/formula/bounded-formula chains and comparison maps into `LInfty`.
 - [x] Prove bijectivity of the term/formula comparison maps into `LInfty`.
 - [x] Port bounded-term/bounded-formula comparison bijectivity and the induced equivalence at bounded formulas.
-- [x] Port Henkin witness properties, `witInfty`, and the raw `ι`/`T_infty` theory-chain scaffolding.
+- [x] Port Henkin witness properties, `witInfty`, the raw `ι`/`T_infty` theory-chain scaffolding, and the enough-constants proof for `henkinization`.
 - [ ] Prove consistency of the Henkin theory step and `ι`-chain, then finish the henkinization/completed-theory bridge.
 - [ ] Port `pSet_ordinal` as the first forcing-side hard dependency.
 - [ ] Port the topology/regular-open/collapse stack.
@@ -113,7 +113,8 @@ language-extension, Henkin language-chain infrastructure, the induced comparison
 bounded-formula equivalence needed to choose representatives. It also now has the witness
 property definition, the extracted `witInfty` representative, the recursive Henkin theory step,
 the raw `ι` chain inside `Theory (LInfty L)`, the induced inclusion lemmas along that chain,
-and the `T_infty` union theory definition.
+the `T_infty` union theory definition, the local enough-constants interface, and the proof that
+the raw `henkinization` already has enough constants.
 
 What is still missing is the consistency/reflection side: proving the Henkin theory step preserves
 consistency, reflecting inconsistency back along the `ι` embeddings, packaging the chain as a

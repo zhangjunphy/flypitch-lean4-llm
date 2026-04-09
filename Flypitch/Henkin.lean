@@ -377,6 +377,267 @@ def boundedFormulaComparison {L : Language.{u}} (n l : Nat) :
     colimit (boundedFormulaChain' (L := L)) → bounded_formula (LInfty L) 1 :=
   boundedFormulaComparison (L := L) 1 0
 
+private theorem termComparison_surjective {L : Language.{u}} :
+    {l : Nat} → (t : preterm (LInfty L) l) →
+      ∃ x : colimit (termChain (L := L) l), termComparison l x = t
+  | _, .var k => by
+      refine ⟨canonical_map (F := termChain (L := L) 0) 0 (&k), ?_⟩
+      simp [termComparison, coconeOfTermLInfty]
+  | l, .func f => by
+      rcases germ_rep f with ⟨⟨i, x⟩, hx⟩
+      change (chainObjects L i).functions l at x
+      refine ⟨canonical_map (F := termChain (L := L) l) i (preterm.func x), ?_⟩
+      have hx' : (canonicalMap (L := L) i).on_function x = f := by
+        simpa [canonicalMap, canonical_map_language] using hx
+      simp [termComparison, coconeOfTermLInfty, hx']
+  | l, .app t₁ t₂ => by
+      rcases termComparison_surjective t₁ with ⟨u₁, hu₁⟩
+      rcases termComparison_surjective t₂ with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := termChain (L := L) l) (i + j)
+        (preterm.app (push_to_sum_r (F := termChain (L := L) (l + 1)) x j)
+          (push_to_sum_l (F := termChain (L := L) 0) y i)), ?_⟩
+      have hx' :
+          canonical_map (F := termChain (L := L) (l + 1)) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := termChain (L := L) 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have htx :
+          termComparison (L := L) (l + 1)
+            (canonical_map (F := termChain (L := L) (l + 1)) (i + j)
+              (push_to_sum_r (F := termChain (L := L) (l + 1)) x j)) = t₁ := by
+        calc
+          termComparison (L := L) (l + 1)
+              (canonical_map (F := termChain (L := L) (l + 1)) (i + j)
+                (push_to_sum_r (F := termChain (L := L) (l + 1)) x j)) =
+            termComparison (L := L) (l + 1)
+              (canonical_map (F := termChain (L := L) (l + 1)) i x) := by
+                rw [← same_fiber_as_push_to_r (F := termChain (L := L) (l + 1)) x j]
+          _ = termComparison (L := L) (l + 1) u₁ := by rw [hx']
+          _ = t₁ := hu₁
+      have hty :
+          termComparison (L := L) 0
+            (canonical_map (F := termChain (L := L) 0) (i + j)
+              (push_to_sum_l (F := termChain (L := L) 0) y i)) = t₂ := by
+        calc
+          termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) (i + j)
+                (push_to_sum_l (F := termChain (L := L) 0) y i)) =
+            termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := termChain (L := L) 0) y i]
+          _ = termComparison (L := L) 0 u₂ := by rw [hy']
+          _ = t₂ := hu₂
+      have htx' :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_r (F := termChain (L := L) (l + 1)) x j) = t₁ := by
+        simpa [termComparison, coconeOfTermLInfty] using htx
+      have hty' :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_l (F := termChain (L := L) 0) y i) = t₂ := by
+        simpa [termComparison, coconeOfTermLInfty] using hty
+      simpa [termComparison, coconeOfTermLInfty, htx', hty']
+
+theorem termComparison_bijective {L : Language.{u}} (l : Nat) :
+    Function.Bijective (@termComparison L l) := by
+  refine ⟨?_, ?_⟩
+  · unfold termComparison
+    apply universal_map_inj_of_components_inj
+    intro i
+    dsimp [coconeOfTermLInfty]
+    exact Lhom.on_term_inj (canonicalMap_inj (L := L) i)
+  · intro t
+    exact termComparison_surjective t
+
+private theorem formulaComparison_surjective {L : Language.{u}} :
+    {l : Nat} → (f : preformula (LInfty L) l) →
+      ∃ x : colimit (formulaChain (L := L) l), formulaComparison l x = f
+  | _, .falsum => by
+      refine ⟨canonical_map (F := formulaChain (L := L) 0) 0 (preformula.falsum), ?_⟩
+      change (⊥ : formula (LInfty L)) = preformula.falsum
+      rfl
+  | _, .equal t₁ t₂ => by
+      rcases termComparison_surjective t₁ with ⟨u₁, hu₁⟩
+      rcases termComparison_surjective t₂ with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := formulaChain (L := L) 0) (i + j)
+        (push_to_sum_r (F := termChain (L := L) 0) x j ≃
+          push_to_sum_l (F := termChain (L := L) 0) y i), ?_⟩
+      have hx' :
+          canonical_map (F := termChain (L := L) 0) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := termChain (L := L) 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have htx :
+          termComparison (L := L) 0
+            (canonical_map (F := termChain (L := L) 0) (i + j)
+              (push_to_sum_r (F := termChain (L := L) 0) x j)) = t₁ := by
+        calc
+          termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) (i + j)
+                (push_to_sum_r (F := termChain (L := L) 0) x j)) =
+            termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) i x) := by
+                rw [← same_fiber_as_push_to_r (F := termChain (L := L) 0) x j]
+          _ = termComparison (L := L) 0 u₁ := by rw [hx']
+          _ = t₁ := hu₁
+      have hty :
+          termComparison (L := L) 0
+            (canonical_map (F := termChain (L := L) 0) (i + j)
+              (push_to_sum_l (F := termChain (L := L) 0) y i)) = t₂ := by
+        calc
+          termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) (i + j)
+                (push_to_sum_l (F := termChain (L := L) 0) y i)) =
+            termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := termChain (L := L) 0) y i]
+          _ = termComparison (L := L) 0 u₂ := by rw [hy']
+          _ = t₂ := hu₂
+      have htx' :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_r (F := termChain (L := L) 0) x j) = t₁ := by
+        simpa [termComparison, coconeOfTermLInfty] using htx
+      have hty' :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_l (F := termChain (L := L) 0) y i) = t₂ := by
+        simpa [termComparison, coconeOfTermLInfty] using hty
+      simpa [formulaComparison, coconeOfFormulaLInfty, htx', hty']
+  | l, .rel R => by
+      rcases germ_rep R with ⟨⟨i, x⟩, hx⟩
+      change (chainObjects L i).relations l at x
+      refine ⟨canonical_map (F := formulaChain (L := L) l) i (preformula.rel x), ?_⟩
+      have hx' : (canonicalMap (L := L) i).on_relation x = R := by
+        simpa [canonicalMap, canonical_map_language] using hx
+      simp [formulaComparison, coconeOfFormulaLInfty, hx']
+  | l, .apprel f t => by
+      rcases formulaComparison_surjective f with ⟨u₁, hu₁⟩
+      rcases termComparison_surjective t with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := formulaChain (L := L) l) (i + j)
+        (preformula.apprel
+          (push_to_sum_r (F := formulaChain (L := L) (l + 1)) x j)
+          (push_to_sum_l (F := termChain (L := L) 0) y i)), ?_⟩
+      have hx' :
+          canonical_map (F := formulaChain (L := L) (l + 1)) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := termChain (L := L) 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have hfx :
+          formulaComparison (L := L) (l + 1)
+            (canonical_map (F := formulaChain (L := L) (l + 1)) (i + j)
+              (push_to_sum_r (F := formulaChain (L := L) (l + 1)) x j)) = f := by
+        calc
+          formulaComparison (L := L) (l + 1)
+              (canonical_map (F := formulaChain (L := L) (l + 1)) (i + j)
+                (push_to_sum_r (F := formulaChain (L := L) (l + 1)) x j)) =
+            formulaComparison (L := L) (l + 1)
+              (canonical_map (F := formulaChain (L := L) (l + 1)) i x) := by
+                rw [← same_fiber_as_push_to_r (F := formulaChain (L := L) (l + 1)) x j]
+          _ = formulaComparison (L := L) (l + 1) u₁ := by rw [hx']
+          _ = f := hu₁
+      have hty :
+          termComparison (L := L) 0
+            (canonical_map (F := termChain (L := L) 0) (i + j)
+              (push_to_sum_l (F := termChain (L := L) 0) y i)) = t := by
+        calc
+          termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) (i + j)
+                (push_to_sum_l (F := termChain (L := L) 0) y i)) =
+            termComparison (L := L) 0
+              (canonical_map (F := termChain (L := L) 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := termChain (L := L) 0) y i]
+          _ = termComparison (L := L) 0 u₂ := by rw [hy']
+          _ = t := hu₂
+      have hfx' :
+          (canonicalMap (L := L) (i + j)).on_formula
+            (push_to_sum_r (F := formulaChain (L := L) (l + 1)) x j) = f := by
+        simpa [formulaComparison, coconeOfFormulaLInfty] using hfx
+      have hty' :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_l (F := termChain (L := L) 0) y i) = t := by
+        simpa [termComparison, coconeOfTermLInfty] using hty
+      simpa [formulaComparison, coconeOfFormulaLInfty, hfx', hty']
+  | _, .imp f₁ f₂ => by
+      rcases formulaComparison_surjective f₁ with ⟨u₁, hu₁⟩
+      rcases formulaComparison_surjective f₂ with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := formulaChain (L := L) 0) (i + j)
+        (push_to_sum_r (F := formulaChain (L := L) 0) x j ⟹
+          push_to_sum_l (F := formulaChain (L := L) 0) y i), ?_⟩
+      have hx' :
+          canonical_map (F := formulaChain (L := L) 0) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := formulaChain (L := L) 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have hfx :
+          formulaComparison (L := L) 0
+            (canonical_map (F := formulaChain (L := L) 0) (i + j)
+              (push_to_sum_r (F := formulaChain (L := L) 0) x j)) = f₁ := by
+        calc
+          formulaComparison (L := L) 0
+              (canonical_map (F := formulaChain (L := L) 0) (i + j)
+                (push_to_sum_r (F := formulaChain (L := L) 0) x j)) =
+            formulaComparison (L := L) 0
+              (canonical_map (F := formulaChain (L := L) 0) i x) := by
+                rw [← same_fiber_as_push_to_r (F := formulaChain (L := L) 0) x j]
+          _ = formulaComparison (L := L) 0 u₁ := by rw [hx']
+          _ = f₁ := hu₁
+      have hgy :
+          formulaComparison (L := L) 0
+            (canonical_map (F := formulaChain (L := L) 0) (i + j)
+              (push_to_sum_l (F := formulaChain (L := L) 0) y i)) = f₂ := by
+        calc
+          formulaComparison (L := L) 0
+              (canonical_map (F := formulaChain (L := L) 0) (i + j)
+                (push_to_sum_l (F := formulaChain (L := L) 0) y i)) =
+            formulaComparison (L := L) 0
+              (canonical_map (F := formulaChain (L := L) 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := formulaChain (L := L) 0) y i]
+          _ = formulaComparison (L := L) 0 u₂ := by rw [hy']
+          _ = f₂ := hu₂
+      have hfx' :
+          (canonicalMap (L := L) (i + j)).on_formula
+            (push_to_sum_r (F := formulaChain (L := L) 0) x j) = f₁ := by
+        simpa [formulaComparison, coconeOfFormulaLInfty] using hfx
+      have hgy' :
+          (canonicalMap (L := L) (i + j)).on_formula
+            (push_to_sum_l (F := formulaChain (L := L) 0) y i) = f₂ := by
+        simpa [formulaComparison, coconeOfFormulaLInfty] using hgy
+      simpa [formulaComparison, coconeOfFormulaLInfty, hfx', hgy']
+  | _, .all f => by
+      rcases formulaComparison_surjective f with ⟨u, hu⟩
+      rcases germ_rep u with ⟨⟨i, x⟩, hx⟩
+      refine ⟨canonical_map (F := formulaChain (L := L) 0) i (∀' x), ?_⟩
+      have hx' : canonical_map (F := formulaChain (L := L) 0) i x = u := by
+        simpa [canonical_map] using hx
+      have hfx : formulaComparison (L := L) 0
+          (canonical_map (F := formulaChain (L := L) 0) i x) = f := by
+        rw [hx']
+        exact hu
+      have hfx' : (canonicalMap (L := L) i).on_formula x = f := by
+        simpa [formulaComparison, coconeOfFormulaLInfty] using hfx
+      simpa [formulaComparison, coconeOfFormulaLInfty, hfx']
+
+theorem formulaComparison_bijective {L : Language.{u}} (l : Nat) :
+    Function.Bijective (@formulaComparison L l) := by
+  refine ⟨?_, ?_⟩
+  · unfold formulaComparison
+    apply universal_map_inj_of_components_inj
+    intro i
+    dsimp [coconeOfFormulaLInfty]
+    exact Lhom.on_formula_inj (canonicalMap_inj (L := L) i)
+  · intro f
+    exact formulaComparison_surjective f
+
 end henkin
 
 end Flypitch

@@ -638,6 +638,367 @@ theorem formulaComparison_bijective {L : Language.{u}} (l : Nat) :
   · intro f
     exact formulaComparison_surjective f
 
+private theorem boundedTermComparison_surjective {L : Language.{u}} :
+    {n l : Nat} → (t : bounded_preterm (LInfty L) n l) →
+      ∃ x : colimit (boundedTermChain (L := L) n l), boundedTermComparison n l x = t
+  | n, _, ⟨.var k, hk⟩ => by
+      refine ⟨canonical_map (F := boundedTermChain (L := L) n 0) 0 (bd_var ⟨k, hk⟩), ?_⟩
+      simp [boundedTermComparison, coconeOfBoundedTermLInfty, bd_var]
+  | n, l, ⟨.func f, _⟩ => by
+      rcases germ_rep f with ⟨⟨i, x⟩, hx⟩
+      change (chainObjects L i).functions l at x
+      refine ⟨canonical_map (F := boundedTermChain (L := L) n l) i (bd_func x), ?_⟩
+      have hx' : (canonicalMap (L := L) i).on_function x = f := by
+        simpa [canonicalMap, canonical_map_language] using hx
+      apply Subtype.ext
+      simp [boundedTermComparison, coconeOfBoundedTermLInfty, bd_func, hx']
+  | n, l, ⟨.app t s, hts⟩ => by
+      rcases boundedTermComparison_surjective ⟨t, hts.1⟩ with ⟨u₁, hu₁⟩
+      rcases boundedTermComparison_surjective ⟨s, hts.2⟩ with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := boundedTermChain (L := L) n l) (i + j)
+        (bd_app (push_to_sum_r (F := boundedTermChain (L := L) n (l + 1)) x j)
+          (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)), ?_⟩
+      have hx' :
+          canonical_map (F := boundedTermChain (L := L) n (l + 1)) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := boundedTermChain (L := L) n 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have htx :
+          boundedTermComparison (L := L) n (l + 1)
+            (canonical_map (F := boundedTermChain (L := L) n (l + 1)) (i + j)
+              (push_to_sum_r (F := boundedTermChain (L := L) n (l + 1)) x j)) = ⟨t, hts.1⟩ := by
+        calc
+          boundedTermComparison (L := L) n (l + 1)
+              (canonical_map (F := boundedTermChain (L := L) n (l + 1)) (i + j)
+                (push_to_sum_r (F := boundedTermChain (L := L) n (l + 1)) x j)) =
+            boundedTermComparison (L := L) n (l + 1)
+              (canonical_map (F := boundedTermChain (L := L) n (l + 1)) i x) := by
+                rw [← same_fiber_as_push_to_r (F := boundedTermChain (L := L) n (l + 1)) x j]
+          _ = boundedTermComparison (L := L) n (l + 1) u₁ := by rw [hx']
+          _ = ⟨t, hts.1⟩ := hu₁
+      have hty :
+          boundedTermComparison (L := L) n 0
+            (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+              (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)) = ⟨s, hts.2⟩ := by
+        calc
+          boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+                (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)) =
+            boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := boundedTermChain (L := L) n 0) y i]
+          _ = boundedTermComparison (L := L) n 0 u₂ := by rw [hy']
+          _ = ⟨s, hts.2⟩ := hu₂
+      have htx' :
+          (canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_r (F := boundedTermChain (L := L) n (l + 1)) x j) = ⟨t, hts.1⟩ := by
+        simpa [boundedTermComparison, coconeOfBoundedTermLInfty] using htx
+      have hty' :
+          (canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i) = ⟨s, hts.2⟩ := by
+        simpa [boundedTermComparison, coconeOfBoundedTermLInfty] using hty
+      have htxv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_r (F := boundedTermChain (L := L) n (l + 1)) x j)).1 = t := by
+        simpa using congrArg Subtype.val htx'
+      have htyv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)).1 = s := by
+        simpa using congrArg Subtype.val hty'
+      have htxt :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_r (F := boundedTermChain (L := L) n (l + 1)) x j).1 = t := by
+        simpa using htxv
+      have htys :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i).1 = s := by
+        simpa using htyv
+      apply Subtype.ext
+      simpa [boundedTermComparison, coconeOfBoundedTermLInfty, bd_app] using And.intro htxt htys
+termination_by
+  n l t => sizeOf t.1
+decreasing_by
+  all_goals
+    try simp_wf
+    try omega
+
+theorem boundedTermComparison_bijective {L : Language.{u}} (n l : Nat) :
+    Function.Bijective (@boundedTermComparison L n l) := by
+  refine ⟨?_, ?_⟩
+  · unfold boundedTermComparison
+    apply universal_map_inj_of_components_inj
+    intro i
+    dsimp [coconeOfBoundedTermLInfty]
+    exact Lhom.on_bounded_term_inj (canonicalMap_inj (L := L) i)
+  · intro t
+    exact boundedTermComparison_surjective t
+
+private theorem boundedFormulaComparison_surjective {L : Language.{u}} :
+    {n l : Nat} → (f : bounded_preformula (LInfty L) n l) →
+      ∃ x : colimit (boundedFormulaChain (L := L) n l), boundedFormulaComparison n l x = f
+  | n, _, ⟨.falsum, _⟩ => by
+      refine ⟨canonical_map (F := boundedFormulaChain (L := L) n 0) 0 (bd_falsum), ?_⟩
+      apply Subtype.ext
+      rfl
+  | n, _, ⟨.equal t₁ t₂, hts⟩ => by
+      rcases boundedTermComparison_surjective ⟨t₁, hts.1⟩ with ⟨u₁, hu₁⟩
+      rcases boundedTermComparison_surjective ⟨t₂, hts.2⟩ with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := boundedFormulaChain (L := L) n 0) (i + j)
+        (bd_equal (push_to_sum_r (F := boundedTermChain (L := L) n 0) x j)
+          (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)), ?_⟩
+      have hx' :
+          canonical_map (F := boundedTermChain (L := L) n 0) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := boundedTermChain (L := L) n 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have htx :
+          boundedTermComparison (L := L) n 0
+            (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+              (push_to_sum_r (F := boundedTermChain (L := L) n 0) x j)) = ⟨t₁, hts.1⟩ := by
+        calc
+          boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+                (push_to_sum_r (F := boundedTermChain (L := L) n 0) x j)) =
+            boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) i x) := by
+                rw [← same_fiber_as_push_to_r (F := boundedTermChain (L := L) n 0) x j]
+          _ = boundedTermComparison (L := L) n 0 u₁ := by rw [hx']
+          _ = ⟨t₁, hts.1⟩ := hu₁
+      have hty :
+          boundedTermComparison (L := L) n 0
+            (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+              (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)) = ⟨t₂, hts.2⟩ := by
+        calc
+          boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+                (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)) =
+            boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := boundedTermChain (L := L) n 0) y i]
+          _ = boundedTermComparison (L := L) n 0 u₂ := by rw [hy']
+          _ = ⟨t₂, hts.2⟩ := hu₂
+      have htx' :
+          (canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_r (F := boundedTermChain (L := L) n 0) x j) = ⟨t₁, hts.1⟩ := by
+        simpa [boundedTermComparison, coconeOfBoundedTermLInfty] using htx
+      have hty' :
+          (canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i) = ⟨t₂, hts.2⟩ := by
+        simpa [boundedTermComparison, coconeOfBoundedTermLInfty] using hty
+      have htxv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_r (F := boundedTermChain (L := L) n 0) x j)).1 = t₁ := by
+        simpa using congrArg Subtype.val htx'
+      have htyv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)).1 = t₂ := by
+        simpa using congrArg Subtype.val hty'
+      have htxt :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_r (F := boundedTermChain (L := L) n 0) x j).1 = t₁ := by
+        simpa using htxv
+      have htyt :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i).1 = t₂ := by
+        simpa using htyv
+      apply Subtype.ext
+      simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty, bd_equal] using
+        And.intro htxt htyt
+  | n, l, ⟨.rel R, _⟩ => by
+      rcases germ_rep R with ⟨⟨i, x⟩, hx⟩
+      change (chainObjects L i).relations l at x
+      refine ⟨canonical_map (F := boundedFormulaChain (L := L) n l) i (bd_rel x), ?_⟩
+      have hx' : (canonicalMap (L := L) i).on_relation x = R := by
+        simpa [canonicalMap, canonical_map_language] using hx
+      apply Subtype.ext
+      simp [boundedFormulaComparison, coconeOfBoundedFormulaLInfty, bd_rel, hx']
+  | n, l, ⟨.apprel f t, hft⟩ => by
+      rcases boundedFormulaComparison_surjective ⟨f, hft.1⟩ with ⟨u₁, hu₁⟩
+      rcases boundedTermComparison_surjective ⟨t, hft.2⟩ with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := boundedFormulaChain (L := L) n l) (i + j)
+        (bd_apprel (push_to_sum_r (F := boundedFormulaChain (L := L) n (l + 1)) x j)
+          (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)), ?_⟩
+      have hx' :
+          canonical_map (F := boundedFormulaChain (L := L) n (l + 1)) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := boundedTermChain (L := L) n 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have hfx :
+          boundedFormulaComparison (L := L) n (l + 1)
+            (canonical_map (F := boundedFormulaChain (L := L) n (l + 1)) (i + j)
+              (push_to_sum_r (F := boundedFormulaChain (L := L) n (l + 1)) x j)) = ⟨f, hft.1⟩ := by
+        calc
+          boundedFormulaComparison (L := L) n (l + 1)
+              (canonical_map (F := boundedFormulaChain (L := L) n (l + 1)) (i + j)
+                (push_to_sum_r (F := boundedFormulaChain (L := L) n (l + 1)) x j)) =
+            boundedFormulaComparison (L := L) n (l + 1)
+              (canonical_map (F := boundedFormulaChain (L := L) n (l + 1)) i x) := by
+                rw [← same_fiber_as_push_to_r (F := boundedFormulaChain (L := L) n (l + 1)) x j]
+          _ = boundedFormulaComparison (L := L) n (l + 1) u₁ := by rw [hx']
+          _ = ⟨f, hft.1⟩ := hu₁
+      have hty :
+          boundedTermComparison (L := L) n 0
+            (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+              (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)) = ⟨t, hft.2⟩ := by
+        calc
+          boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) (i + j)
+                (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)) =
+            boundedTermComparison (L := L) n 0
+              (canonical_map (F := boundedTermChain (L := L) n 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := boundedTermChain (L := L) n 0) y i]
+          _ = boundedTermComparison (L := L) n 0 u₂ := by rw [hy']
+          _ = ⟨t, hft.2⟩ := hu₂
+      have hfx' :
+          (canonicalMap (L := L) (i + j)).on_bounded_formula
+            (push_to_sum_r (F := boundedFormulaChain (L := L) n (l + 1)) x j) = ⟨f, hft.1⟩ := by
+        simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty] using hfx
+      have hty' :
+          (canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i) = ⟨t, hft.2⟩ := by
+        simpa [boundedTermComparison, coconeOfBoundedTermLInfty] using hty
+      have hfxv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_formula
+            (push_to_sum_r (F := boundedFormulaChain (L := L) n (l + 1)) x j)).1 = f := by
+        simpa using congrArg Subtype.val hfx'
+      have htyv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i)).1 = t := by
+        simpa using congrArg Subtype.val hty'
+      have hfxf :
+          (canonicalMap (L := L) (i + j)).on_formula
+            (push_to_sum_r (F := boundedFormulaChain (L := L) n (l + 1)) x j).1 = f := by
+        simpa using hfxv
+      have htyt :
+          (canonicalMap (L := L) (i + j)).on_term
+            (push_to_sum_l (F := boundedTermChain (L := L) n 0) y i).1 = t := by
+        simpa using htyv
+      apply Subtype.ext
+      simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty, bd_apprel] using
+        And.intro hfxf htyt
+  | n, _, ⟨.imp f₁ f₂, hff⟩ => by
+      rcases boundedFormulaComparison_surjective ⟨f₁, hff.1⟩ with ⟨u₁, hu₁⟩
+      rcases boundedFormulaComparison_surjective ⟨f₂, hff.2⟩ with ⟨u₂, hu₂⟩
+      rcases germ_rep u₁ with ⟨⟨i, x⟩, hx⟩
+      rcases germ_rep u₂ with ⟨⟨j, y⟩, hy⟩
+      refine ⟨canonical_map (F := boundedFormulaChain (L := L) n 0) (i + j)
+        (bd_imp (push_to_sum_r (F := boundedFormulaChain (L := L) n 0) x j)
+          (push_to_sum_l (F := boundedFormulaChain (L := L) n 0) y i)), ?_⟩
+      have hx' :
+          canonical_map (F := boundedFormulaChain (L := L) n 0) i x = u₁ := by
+        simpa [canonical_map] using hx
+      have hy' :
+          canonical_map (F := boundedFormulaChain (L := L) n 0) j y = u₂ := by
+        simpa [canonical_map] using hy
+      have hfx :
+          boundedFormulaComparison (L := L) n 0
+            (canonical_map (F := boundedFormulaChain (L := L) n 0) (i + j)
+              (push_to_sum_r (F := boundedFormulaChain (L := L) n 0) x j)) = ⟨f₁, hff.1⟩ := by
+        calc
+          boundedFormulaComparison (L := L) n 0
+              (canonical_map (F := boundedFormulaChain (L := L) n 0) (i + j)
+                (push_to_sum_r (F := boundedFormulaChain (L := L) n 0) x j)) =
+            boundedFormulaComparison (L := L) n 0
+              (canonical_map (F := boundedFormulaChain (L := L) n 0) i x) := by
+                rw [← same_fiber_as_push_to_r (F := boundedFormulaChain (L := L) n 0) x j]
+          _ = boundedFormulaComparison (L := L) n 0 u₁ := by rw [hx']
+          _ = ⟨f₁, hff.1⟩ := hu₁
+      have hgy :
+          boundedFormulaComparison (L := L) n 0
+            (canonical_map (F := boundedFormulaChain (L := L) n 0) (i + j)
+              (push_to_sum_l (F := boundedFormulaChain (L := L) n 0) y i)) = ⟨f₂, hff.2⟩ := by
+        calc
+          boundedFormulaComparison (L := L) n 0
+              (canonical_map (F := boundedFormulaChain (L := L) n 0) (i + j)
+                (push_to_sum_l (F := boundedFormulaChain (L := L) n 0) y i)) =
+            boundedFormulaComparison (L := L) n 0
+              (canonical_map (F := boundedFormulaChain (L := L) n 0) j y) := by
+                rw [← same_fiber_as_push_to_l (F := boundedFormulaChain (L := L) n 0) y i]
+          _ = boundedFormulaComparison (L := L) n 0 u₂ := by rw [hy']
+          _ = ⟨f₂, hff.2⟩ := hu₂
+      have hfx' :
+          (canonicalMap (L := L) (i + j)).on_bounded_formula
+            (push_to_sum_r (F := boundedFormulaChain (L := L) n 0) x j) = ⟨f₁, hff.1⟩ := by
+        simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty] using hfx
+      have hgy' :
+          (canonicalMap (L := L) (i + j)).on_bounded_formula
+            (push_to_sum_l (F := boundedFormulaChain (L := L) n 0) y i) = ⟨f₂, hff.2⟩ := by
+        simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty] using hgy
+      have hfxv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_formula
+            (push_to_sum_r (F := boundedFormulaChain (L := L) n 0) x j)).1 = f₁ := by
+        simpa using congrArg Subtype.val hfx'
+      have hgyv :
+          ((canonicalMap (L := L) (i + j)).on_bounded_formula
+            (push_to_sum_l (F := boundedFormulaChain (L := L) n 0) y i)).1 = f₂ := by
+        simpa using congrArg Subtype.val hgy'
+      have hfxf :
+          (canonicalMap (L := L) (i + j)).on_formula
+            (push_to_sum_r (F := boundedFormulaChain (L := L) n 0) x j).1 = f₁ := by
+        simpa using hfxv
+      have hgyg :
+          (canonicalMap (L := L) (i + j)).on_formula
+            (push_to_sum_l (F := boundedFormulaChain (L := L) n 0) y i).1 = f₂ := by
+        simpa using hgyv
+      apply Subtype.ext
+      simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty, bd_imp] using
+        And.intro hfxf hgyg
+  | n, _, ⟨.all f, hf⟩ => by
+      rcases boundedFormulaComparison_surjective ⟨f, hf⟩ with ⟨u, hu⟩
+      rcases germ_rep u with ⟨⟨i, x⟩, hx⟩
+      refine ⟨canonical_map (F := boundedFormulaChain (L := L) n 0) i (bd_all x), ?_⟩
+      have hx' : canonical_map (F := boundedFormulaChain (L := L) (n + 1) 0) i x = u := by
+        simpa [canonical_map] using hx
+      have hfx :
+          boundedFormulaComparison (L := L) (n + 1) 0
+            (canonical_map (F := boundedFormulaChain (L := L) (n + 1) 0) i x) = ⟨f, hf⟩ := by
+        rw [hx']
+        exact hu
+      have hfx' : (canonicalMap (L := L) i).on_bounded_formula x = ⟨f, hf⟩ := by
+        simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty] using hfx
+      have hfxv : ((canonicalMap (L := L) i).on_bounded_formula x).1 = f := by
+        simpa using congrArg Subtype.val hfx'
+      have hfxf : (canonicalMap (L := L) i).on_formula x.1 = f := by
+        simpa using hfxv
+      apply Subtype.ext
+      simpa [boundedFormulaComparison, coconeOfBoundedFormulaLInfty, bd_all] using hfxf
+termination_by
+  n l f => sizeOf f.1
+decreasing_by
+  all_goals
+    try simp_wf
+    try omega
+
+theorem boundedFormulaComparison_bijective {L : Language.{u}} (n l : Nat) :
+    Function.Bijective (@boundedFormulaComparison L n l) := by
+  refine ⟨?_, ?_⟩
+  · unfold boundedFormulaComparison
+    apply universal_map_inj_of_components_inj
+    intro i
+    dsimp [coconeOfBoundedFormulaLInfty]
+    exact Lhom.on_bounded_formula_inj (canonicalMap_inj (L := L) i)
+  · intro f
+    exact boundedFormulaComparison_surjective f
+
+theorem boundedFormulaComparison'_bijective {L : Language.{u}} :
+    Function.Bijective (@boundedFormulaComparison' L) := by
+  simpa [boundedFormulaComparison'] using
+    (boundedFormulaComparison_bijective (L := L) 1 0)
+
+noncomputable def equivBoundedFormulaComparison {L : Language.{u}} :
+    colimit (boundedFormulaChain' (L := L)) ≃ bounded_formula (LInfty L) 1 :=
+  Equiv.ofBijective (boundedFormulaComparison' (L := L))
+    boundedFormulaComparison'_bijective
+
 end henkin
 
 end Flypitch

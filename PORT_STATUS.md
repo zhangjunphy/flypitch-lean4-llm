@@ -73,7 +73,8 @@ The upstream project breaks into two large branches that meet in `zfc.lean`.
 - [x] Port the early Henkin language-colimit slice in `Flypitch/Henkin.lean`.
 - [x] Port Henkin term/formula/bounded-formula chains and comparison maps into `LInfty`.
 - [x] Prove bijectivity of the term/formula comparison maps into `LInfty`.
-- [ ] Port bounded-term/bounded-formula comparison bijectivity and the witness-extraction layer.
+- [x] Port bounded-term/bounded-formula comparison bijectivity and the induced equivalence at bounded formulas.
+- [ ] Port the Henkin witness-extraction layer and theory chain.
 - [ ] Port `pSet_ordinal` as the first forcing-side hard dependency.
 - [ ] Port the topology/regular-open/collapse stack.
 - [ ] Port Boolean-valued models.
@@ -105,13 +106,13 @@ Every completed milestone must satisfy both checks:
 ## Next Blocker
 
 The next critical blocker is still the remaining theory-level half of upstream `henkin.lean`,
-but the frontier has moved forward. The repository now has the directed-colimit,
+but the frontier has moved forward again. The repository now has the directed-colimit,
 language-extension, Henkin language-chain infrastructure, the induced comparison maps into
-`LInfty`, and bijectivity for the term/formula comparison maps.
+`LInfty`, bijectivity for term/formula/bounded-term/bounded-formula comparison maps, and the
+bounded-formula equivalence needed to choose representatives.
 
-What is still missing is the bounded-term/bounded-formula bijectivity layer, the witness
-extraction machinery built on top of it, and then the Henkin theory chain, union construction,
-and bridge to a completed Henkin theory.
+What is still missing is the actual witness-extraction layer built on top of that equivalence,
+followed by the Henkin theory chain, union construction, and bridge to a completed Henkin theory.
 
 The next Lean 4 tranche is:
 

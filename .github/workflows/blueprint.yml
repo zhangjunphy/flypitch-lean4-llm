@@ -76,6 +76,7 @@ jobs:
             .lake/build/doc
             .lake/build/doc-data
             .lake/build/api-docs.db
+            .lake/packages
           key: Docs-${{ runner.os }}-${{ hashFiles('lake-manifest.json', 'lean-toolchain') }}
 
       - name: Build API documentation

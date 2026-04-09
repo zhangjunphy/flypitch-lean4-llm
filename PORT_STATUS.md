@@ -114,12 +114,17 @@ bounded-formula equivalence needed to choose representatives. It also now has th
 property definition, the extracted `witInfty` representative, the recursive Henkin theory step,
 the raw `ι` chain inside `Theory (LInfty L)`, the induced inclusion lemmas along that chain,
 the `T_infty` union theory definition, the local enough-constants interface, and the proof that
-the raw `henkinization` already has enough constants.
+the raw `henkinization` already has enough constants. On the logic-support side,
+`LanguageExtension.lean` now also has the missing reflection infrastructure: image-theory
+formula bookkeeping, reflection commuting with lift/substitution, proof reflection
+(`reflect_prf_gen` / `reflect_prf` / `reflect_sprf`), and consistency preservation for
+induced theories.
 
-What is still missing is the consistency/reflection side: proving the Henkin theory step preserves
-consistency, reflecting inconsistency back along the `ι` embeddings, packaging the chain as a
-consistent directed union, and then finishing the bridge from `henkinization` to a completed
-Henkin theory.
+What is still missing is the fresh-constant and Henkin-specific consistency side: the
+`generalize_constant` / `is_consistent_extend` layer for one-step language extensions, then the
+proof that the Henkin theory step preserves consistency, reflection of inconsistency back along
+the `ι` embeddings, packaging the chain as a consistent directed union, and finally the bridge
+from `henkinization` to a completed Henkin theory.
 
 The next Lean 4 tranche is:
 

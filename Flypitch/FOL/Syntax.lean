@@ -6,6 +6,12 @@ universe u v
 namespace Flypitch
 namespace fol
 
+/-!
+`Flypitch.FOL.Syntax` defines first-order languages, terms, and the de Bruijn-style lifting
+and substitution operations on them. The lemmas in this file are the basic bookkeeping tools
+used throughout the later semantic and proof-theoretic developments.
+-/
+
 open Nat
 
 variable {S : Type u}
@@ -37,6 +43,7 @@ notation:95 v "[" x " // " n "]" => subst_realize v x n
     subst_realize v x n n = x := by
   simp [subst_realize]
 
+/-- Pointwise-equal valuations give the same substituted valuation. -/
 theorem subst_realize_congr {v v' : Nat → S} (hv : ∀ k, v k = v' k) (x : S)
     (n k : Nat) : subst_realize v x n k = subst_realize v' x n k := by
   by_cases hk : k < n
@@ -45,6 +52,7 @@ theorem subst_realize_congr {v v' : Nat → S} (hv : ∀ k, v k = v' k) (x : S)
     · simp [subst_realize, hk, hn, hv]
     · simp [subst_realize, hk, hn]
 
+/-- Commuting the substitutions at `0` and `n + 1` on valuations. -/
 theorem subst_realize2_0 (v : Nat → S) (x x' : S) (n k : Nat) :
     subst_realize (subst_realize v x' n) x 0 k =
       subst_realize (subst_realize v x 0) x' (n + 1) k := by
@@ -63,10 +71,12 @@ theorem subst_realize2_0 (v : Nat → S) (x x' : S) (n k : Nat) :
           have hkpos : 0 < k := lt_of_le_of_lt (Nat.zero_le n) hgt
           simp [subst_realize, hlt, hgt, hs, hkpos, Nat.succ_ne_zero]
 
+/-- A first-order language is given by its function and relation symbols, indexed by arity. -/
 structure Language : Type (u + 1) where
   functions : Nat → Type u
   relations : Nat → Type u
 
+/-- Nullary function symbols of a language. -/
 def Language.constants (L : Language) : Type u :=
   L.functions 0
 
@@ -78,12 +88,14 @@ inductive preterm : Nat → Type u
   | func : {l : Nat} → L.functions l → preterm l
   | app : {l : Nat} → preterm (l + 1) → preterm 0 → preterm l
 
+/-- Closed terms. -/
 abbrev term := preterm L 0
 
 variable {L}
 
 prefix:max "&" => preterm.var
 
+/-- Fully apply a partially applied term to a tuple of arguments. -/
 @[simp] def apps : {l : Nat} → preterm L l → dvector (term L) l → term L
   | _, t, [] => t
   | _, t, x :: xs => apps (preterm.app t x) xs
@@ -92,6 +104,7 @@ prefix:max "&" => preterm.var
   cases ts
   simp [apps]
 
+/-- Applying at least one argument produces an explicit `preterm.app`. -/
 theorem apps_eq_app {l : Nat} (t : preterm L (l + 1)) (s : term L) (ts : dvector (term L) l) :
     ∃ t' s', apps t (s :: ts) = preterm.app t' s' := by
   induction ts generalizing s with
@@ -100,6 +113,7 @@ theorem apps_eq_app {l : Nat} (t : preterm L (l + 1)) (s : term L) (ts : dvector
   | cons x xs ih =>
       simpa [apps] using ih (preterm.app t s) x
 
+/-- Dependent recursor on terms that exposes the full argument vector of each function symbol. -/
 noncomputable def term.rec {C : term L → Sort v}
     (hvar : ∀ k : Nat, C (&k))
     (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l)
@@ -125,6 +139,7 @@ noncomputable def term.rec {C : term L → Sort v}
           | PSum.inr hx' => ih_ts x hx')
   fun t => h t [] (fun s hs => nomatch hs)
 
+/-- Non-dependent eliminator on partially applied terms with accumulated recursive results. -/
 def term.elim' {C : Type v}
     (hvar : ∀ k : Nat, C)
     (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C) :
@@ -134,12 +149,14 @@ def term.elim' {C : Type v}
   | _, .app t s, ts, ih_ts =>
       term.elim' hvar hfunc t (s :: ts) (term.elim' hvar hfunc s [] [] :: ih_ts)
 
+/-- Non-dependent eliminator on closed terms. -/
 def term.elim {C : Type v}
     (hvar : ∀ k : Nat, C)
     (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C) :
     ∀ t : term L, C :=
   fun t => term.elim' hvar hfunc t [] []
 
+/-- Compatibility of `term.elim'` with `apps`. -/
 theorem term.elim'_apps {C : Type v}
     (hvar : ∀ k : Nat, C)
     (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C)
@@ -152,6 +169,7 @@ theorem term.elim'_apps {C : Type v}
   | cons x xs ih =>
       simp [apps, term.elim, term.elim', ih]
 
+/-- Compatibility of `term.elim` with function application. -/
 theorem term.elim_apps {C : Type v}
     (hvar : ∀ k : Nat, C)
     (hfunc : Π {l : Nat} (f : L.functions l) (ts : dvector (term L) l) (ih_ts : dvector C l), C)
@@ -176,6 +194,7 @@ namespace preterm
 
 end preterm
 
+/-- A fully applied function symbol can never be a variable. -/
 theorem apps_ne_var {l : Nat} {f : L.functions l} {ts : dvector (term L) l} {k : Nat} :
     apps (preterm.func f) ts ≠ &k := by
   intro h
@@ -192,15 +211,18 @@ theorem apps_ne_var {l : Nat} {f : L.functions l} {ts : dvector (term L) l} {k :
   | _, .func f, _, _ => .func f
   | _, .app t₁ t₂, n, m => .app (lift_term_at t₁ n m) (lift_term_at t₂ n m)
 
+/-- Lift every free variable of a term by `n`. -/
 def lift_term : {l : Nat} → preterm L l → Nat → preterm L l
   | _, t, n => lift_term_at t n 0
 
+/-- Lift every free variable of a term by one. -/
 def lift_term1 : {l : Nat} → preterm L l → preterm L l
   | _, t => lift_term t 1
 
 notation:90 t " ↑' " n " # " m => lift_term_at t n m
 infix:100 " ↑ " => lift_term
 
+/-- `lift_term` is `lift_term_at` specialized to cutoff `0`. -/
 theorem lift_term_def {l : Nat} (t : preterm L l) (n : Nat) :
     lift_term_at t n 0 = lift_term t n := rfl
 
@@ -292,6 +314,7 @@ notation:95 t "[" s " // " n "]" => subst_term t s n
   | app t₁ t₂ ih₁ ih₂ =>
       simp [lift_term, lift_term_at, ih₁, ih₂]
 
+/-- Commute two lifts when the second cutoff is no larger than the first. -/
 theorem lift_term_at2_small : ∀ {l : Nat} (t : preterm L l) (n n' : Nat) {m m' : Nat}, m' ≤ m →
     lift_term_at (lift_term_at t n m) n' m' = lift_term_at (lift_term_at t n' m') n (m + n')
   | _, &k, n, n', m, m', h => by
@@ -318,6 +341,7 @@ theorem lift_term_at2_small : ∀ {l : Nat} (t : preterm L l) (n n' : Nat) {m m'
         preterm.app (lift_term_at (lift_term_at t₁ n' m') n (m + n')) (lift_term_at (lift_term_at t₂ n' m') n (m + n'))
       rw [lift_term_at2_small t₁ n n' h, lift_term_at2_small t₂ n n' h]
 
+/-- Collapse two lifts when the second cutoff lies inside the first lifted block. -/
 theorem lift_term_at2_medium : ∀ {l : Nat} (t : preterm L l) {n : Nat} (n' : Nat)
     {m m' : Nat}, m ≤ m' → m' ≤ m + n →
     lift_term_at (lift_term_at t n m) n' m' = lift_term_at t (n + n') m
@@ -335,20 +359,24 @@ theorem lift_term_at2_medium : ∀ {l : Nat} (t : preterm L l) {n : Nat} (n' : N
         preterm.app (lift_term_at t₁ (n + n') m) (lift_term_at t₂ (n + n') m)
       rw [lift_term_at2_medium t₁ n' h₁ h₂, lift_term_at2_medium t₂ n' h₁ h₂]
 
+/-- Global version of `lift_term_at2_medium`. -/
 theorem lift_term2_medium {l : Nat} (t : preterm L l) {n : Nat} (n' : Nat) {m' : Nat}
     (h : m' ≤ n) : lift_term_at (lift_term t n) n' m' = lift_term t (n + n') := by
   simpa [lift_term] using lift_term_at2_medium (t := t) (n := n) n' (m := 0) (m' := m')
     (Nat.zero_le _) (by simpa using h)
 
+/-- Successive global lifts add their shift amounts. -/
 theorem lift_term2 {l : Nat} (t : preterm L l) (n n' : Nat) :
     lift_term (lift_term t n) n' = lift_term t (n + n') := by
   simpa [lift_term] using lift_term2_medium (t := t) (n := n) n' (m' := 0) (Nat.zero_le _)
 
+/-- Special case of `lift_term_at2_medium` at the top of the lifted block. -/
 theorem lift_term_at2_eq {l : Nat} (t : preterm L l) (n n' m : Nat) :
     lift_term_at (lift_term_at t n m) n' (m + n) = lift_term_at t (n + n') m := by
   simpa using lift_term_at2_medium (t := t) (n := n) n' (m := m) (m' := m + n)
     (Nat.le_add_right m n) (le_rfl)
 
+/-- Commute two lifts when the second cutoff lies strictly above the first lifted block. -/
 theorem lift_term_at2_large {l : Nat} (t : preterm L l) {n : Nat} (n' : Nat)
     {m m' : Nat} (h : m + n ≤ m') :
     lift_term_at (lift_term_at t n m) n' m' = lift_term_at (lift_term_at t n' (m' - n)) n m := by
@@ -357,6 +385,7 @@ theorem lift_term_at2_large {l : Nat} (t : preterm L l) {n : Nat} (n' : Nat)
   rw [lift_term_at2_small (t := t) (n := n') (n' := n) (m := m' - n) (m' := m) hm]
   simpa [Nat.sub_add_cancel hn, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc]
 
+/-- Substituting above the lift cutoff commutes with lifting. -/
 theorem lift_at_subst_term_large : ∀ {l : Nat} (t : preterm L l) (s : term L) {n₁ : Nat}
     (n₂ : Nat) {m : Nat}, m ≤ n₁ →
     (t ↑' n₂ # m)[s // (n₁ + n₂)] = (t[s // n₁]) ↑' n₂ # m
@@ -408,14 +437,17 @@ theorem lift_at_subst_term_large : ∀ {l : Nat} (t : preterm L l) (s : term L) 
         preterm.app ((t₁[s // n₁]) ↑' n₂ # m) ((t₂[s // n₁]) ↑' n₂ # m)
       rw [lift_at_subst_term_large t₁ s n₂ h, lift_at_subst_term_large t₂ s n₂ h]
 
+/-- Global lifting commutes with substitution above the lifted block. -/
 theorem lift_subst_term_large {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ : Nat) :
     (t ↑ n₂)[s // (n₁ + n₂)] = (t[s // n₁]) ↑ n₂ := by
   simpa [lift_term] using lift_at_subst_term_large (t := t) (s := s) (n₁ := n₁) n₂ (m := 0) (Nat.zero_le _)
 
+/-- Commuted-index version of `lift_subst_term_large`. -/
 theorem lift_subst_term_large' {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ : Nat) :
     (t ↑ n₂)[s // (n₂ + n₁)] = (t[s // n₁]) ↑ n₂ := by
   simpa [Nat.add_comm] using lift_subst_term_large (t := t) (s := s) n₁ n₂
 
+/-- Substituting inside the lifted block lowers the lift amount by one. -/
 theorem lift_at_subst_term_medium : ∀ {l : Nat} (t : preterm L l) (s : term L)
     {n₁ n₂ m : Nat}, m ≤ n₂ → n₂ ≤ m + n₁ →
     (t ↑' (n₁ + 1) # m)[s // n₂] = t ↑' n₁ # m
@@ -443,17 +475,20 @@ theorem lift_at_subst_term_medium : ∀ {l : Nat} (t : preterm L l) (s : term L)
         preterm.app (t₁ ↑' n₁ # m) (t₂ ↑' n₁ # m)
       rw [lift_at_subst_term_medium t₁ s h₁ h₂, lift_at_subst_term_medium t₂ s h₁ h₂]
 
+/-- Global version of `lift_at_subst_term_medium`. -/
 theorem lift_subst_term_medium {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ : Nat) :
     (t ↑ ((n₁ + n₂) + 1))[s // n₁] = t ↑ (n₁ + n₂) := by
   simpa [lift_term] using
     (lift_at_subst_term_medium (t := t) (s := s) (n₁ := n₁ + n₂) (n₂ := n₁) (m := 0)
       (Nat.zero_le _) (by omega))
 
+/-- Lifting once and substituting at the cutoff cancels out. -/
 theorem lift_at_subst_term_eq {l : Nat} (t : preterm L l) (s : term L) (n : Nat) :
     (t ↑' 1 # n)[s // n] = t := by
   simpa using lift_at_subst_term_medium (t := t) (s := s) (n₁ := 0) (n₂ := n) (m := n)
     (le_rfl) (by simp)
 
+/-- Composition law for two substitutions into a term. -/
 theorem subst_term2 : ∀ {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n₁ n₂ : Nat),
     t[s₁ // n₁][s₂ // (n₁ + n₂)] = t[s₂ // (n₁ + n₂ + 1)][s₁[s₂ // n₂] // n₁]
   | _, &k, s₁, s₂, n₁, n₂ => by
@@ -544,6 +579,7 @@ theorem subst_term2 : ∀ {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n₁
         preterm.app ((t₁[s // n]) ↑ 1) ((t₂[s // n]) ↑ 1)
       rw [ih₁, ih₂]
 
+/-- Lifting once and then substituting at `0` recovers the original term. -/
 @[simp] theorem lift_term1_subst_term {l : Nat} (t : preterm L l) (s : term L) :
     (t ↑ 1)[s // 0] = t := by
   induction t with
@@ -556,6 +592,7 @@ theorem subst_term2 : ∀ {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n₁
       change preterm.app ((t₁ ↑ 1)[s // 0]) ((t₂ ↑ 1)[s // 0]) = preterm.app t₁ t₂
       rw [ih₁, ih₂]
 
+/-- Special case of `lift_at_subst_term_small` at variable `0`. -/
 @[simp] theorem lift_at_subst_term_small0 {l : Nat} (t : preterm L l) (s : term L) (n m : Nat) :
     (t ↑' n # (m + 1))[s ↑' n # m // 0] = (t[s // 0]) ↑' n # m := by
   induction t with
@@ -592,6 +629,7 @@ theorem subst_term2 : ∀ {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n₁
         preterm.app ((t₁[s // 0]) ↑' n # m) ((t₂[s // 0]) ↑' n # m)
       rw [ih₁, ih₂]
 
+/-- Substituting below the lift cutoff commutes with lifting the substituted term. -/
 theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) (n₁ n₂ m : Nat),
     (t ↑' n₁ # (m + n₂ + 1))[s ↑' n₁ # m // n₂] = (t[s // n₂]) ↑' n₁ # (m + n₂)
   | _, &k, s, n₁, n₂, m => by
@@ -654,6 +692,7 @@ theorem lift_at_subst_term_small : ∀ {l : Nat} (t : preterm L l) (s : term L) 
         preterm.app ((t₁[s // n₂]) ↑' n₁ # (m + n₂)) ((t₂[s // n₂]) ↑' n₁ # (m + n₂))
       rw [lift_at_subst_term_small t₁ s n₁ n₂ m, lift_at_subst_term_small t₂ s n₁ n₂ m]
 
+/-- Specialization of `subst_term2` with the first substitution at variable `0`. -/
 @[simp] theorem subst_term2_zero {l : Nat} (t : preterm L l) (s₁ s₂ : term L) (n : Nat) :
     t[s₁ // 0][s₂ // n] = t[s₂ // (n + 1)][s₁[s₂ // n] // 0] := by
   induction t with

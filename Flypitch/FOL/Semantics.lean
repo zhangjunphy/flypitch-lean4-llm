@@ -6,6 +6,12 @@ universe u
 namespace Flypitch
 namespace fol
 
+/-!
+`Flypitch.FOL.Semantics` interprets the syntax and proof system from the preceding files in
+first-order structures. It defines term and formula realization, semantic consequence, and
+proves the soundness of the natural-deduction rules.
+-/
+
 local notation "[]" => dvector.nil
 local infixr:67 " :: " => dvector.cons
 
@@ -20,12 +26,14 @@ structure Structure (L : Language.{u}) where
 instance : CoeSort (Structure L) (Type u) where
   coe S := S.carrier
 
+/-- Interpret a partially applied term in a structure under a valuation. -/
 @[simp] def realize_term {M : Structure L} (v : Nat → M) :
     {l : Nat} → preterm L l → dvector M l → M
   | _, preterm.var k, _ => v k
   | _, preterm.func f, xs => M.fun_map f xs
   | _, preterm.app t₁ t₂, xs => realize_term v t₁ (realize_term v t₂ [] :: xs)
 
+/-- Realization depends only on the values of the valuation on free variables of the term. -/
 theorem realize_term_congr {M : Structure L} {v v' : Nat → M} (h : ∀ n, v n = v' n) :
     {l : Nat} → (t : preterm L l) → (xs : dvector M l) → realize_term v t xs = realize_term v' t xs
   | _, preterm.var k, _ => h k
@@ -36,6 +44,7 @@ theorem realize_term_congr {M : Structure L} {v v' : Nat → M} (h : ∀ n, v n 
       simpa [realize_term, ht₂] using
         (realize_term_congr (h := h) (t := t₁) (xs := realize_term v t₂ [] :: xs))
 
+/-- Semantic substitution for terms is computed by changing the valuation at the substituted variable. -/
 theorem realize_term_subst {M : Structure L} (v : Nat → M) :
     {l : Nat} → (n : Nat) → (t : preterm L l) → (s : term L) → (xs : dvector M l) →
       realize_term (v[realize_term v (s ↑ n) [] // n]) t xs = realize_term v (t[s // n]) xs
@@ -57,6 +66,7 @@ theorem realize_term_subst {M : Structure L} (v : Nat → M) :
         (realize_term_subst (v := v) (n := n) (t := t₁) (s := s)
           (xs := realize_term v (subst_term t₂ s n) [] :: xs))
 
+/-- Lifting a term corresponds semantically to extending the valuation by a fresh element. -/
 theorem realize_term_subst_lift {M : Structure L} (v : Nat → M) (x : M) (m : Nat) :
     {l : Nat} → (t : preterm L l) → (xs : dvector M l) →
       realize_term (v[x // m]) (t ↑' 1 # m) xs = realize_term v t xs
@@ -74,6 +84,7 @@ theorem realize_term_subst_lift {M : Structure L} (v : Nat → M) (x : M) (m : N
         (realize_term_subst_lift (v := v) (x := x) (m := m) (t := t₁)
           (xs := realize_term v t₂ [] :: xs))
 
+/-- Interpret a preformula under a valuation and arguments for its unapplied relation slots. -/
 @[simp] def realize_formula {M : Structure L} :
     {l : Nat} → (Nat → M) → preformula L l → dvector M l → Prop
   | _, _, .falsum, _ => False
@@ -83,6 +94,7 @@ theorem realize_term_subst_lift {M : Structure L} (v : Nat → M) (x : M) (m : N
   | _, v, .imp f₁ f₂, xs => realize_formula v f₁ xs → realize_formula v f₂ xs
   | _, v, .all f, xs => ∀ x : M, realize_formula (v[x // 0]) f xs
 
+/-- Realization of formulas is invariant under pointwise-equal valuations. -/
 theorem realize_formula_congr {M : Structure L} :
     {l : Nat} → {v v' : Nat → M} → (h : ∀ n, v n = v' n) → (f : preformula L l) →
       (xs : dvector M l) → realize_formula v f xs ↔ realize_formula v' f xs
@@ -118,6 +130,7 @@ theorem realize_formula_congr {M : Structure L} :
           (h := fun n => subst_realize_congr h x 0 n)
           (f := f) (xs := xs)).mpr (hf x)
 
+/-- Formula substitution is semantically the same as updating the valuation at the substituted variable. -/
 theorem realize_formula_subst {M : Structure L} :
     {l : Nat} → (v : Nat → M) → (n : Nat) → (f : preformula L l) → (s : term L) →
       (xs : dvector M l) →
@@ -188,11 +201,13 @@ theorem realize_formula_subst {M : Structure L} :
             (subst_realize2_0 (v := v) (x := x) (x' := realize_term v (s ↑ n) []) (n := n) (k := k))
         exact (realize_formula_congr (h := hval) (f := f) (xs := xs)).mpr hx'
 
+/-- Specialization of `realize_formula_subst` to substitution at variable `0`. -/
 theorem realize_formula_subst0 {M : Structure L} {l : Nat} (v : Nat → M) (f : preformula L l)
     (s : term L) (xs : dvector M l) :
     realize_formula (v[realize_term v s [] // 0]) f xs ↔ realize_formula v (subst_formula f s 0) xs := by
   simpa using realize_formula_subst (v := v) (n := 0) (f := f) (s := s) (xs := xs)
 
+/-- Lifting a formula is semantically neutral when the valuation is extended at the lifted index. -/
 theorem realize_formula_subst_lift {M : Structure L} :
     {l : Nat} → (v : Nat → M) → (x : M) → (m : Nat) → (f : preformula L l) →
       (xs : dvector M l) →
@@ -231,54 +246,66 @@ theorem realize_formula_subst_lift {M : Structure L} :
             (subst_realize2_0 (v := v) (x := x') (x' := x) (n := m) (k := k))
         exact (realize_formula_congr (h := hval) (f := lift_formula_at f 1 (m + 1)) (xs := xs)).mpr hx
 
+/-- A closed formula is satisfied in `M` when every valuation realizes it. -/
 def satisfied_in (M : Structure L) (f : formula L) : Prop :=
   ∀ v : Nat → M.carrier, realize_formula v f []
 
+/-- Every formula in `T` is satisfied in `M`. -/
 def all_satisfied_in (M : Structure L) (T : Set (formula L)) : Prop :=
   ∀ ⦃f : formula L⦄, f ∈ T → satisfied_in M f
 
+/-- Semantic consequence of a single formula from a set of assumptions. -/
 def satisfied (T : Set (formula L)) (f : formula L) : Prop :=
   ∀ (M : Structure L) (v : Nat → M.carrier),
     (∀ g : formula L, g ∈ T → realize_formula v g []) →
     realize_formula v f []
 
+/-- Semantic consequence of every formula in `T'` from `T`. -/
 def all_satisfied (T T' : Set (formula L)) : Prop :=
   ∀ ⦃f : formula L⦄, f ∈ T' → satisfied T f
 
 infix:51 " ⊨ " => satisfied
 
+/-- Semantic consequence can be composed with satisfaction in a specific structure. -/
 theorem satisfied_in_trans {M : Structure L} {T : Set (formula L)} {f : formula L}
     (hMT : all_satisfied_in M T) (hTf : satisfied T f) : satisfied_in M f :=
   fun v => hTf M v (fun g hg => hMT hg v)
 
+/-- Satisfaction of a theory in a structure is closed under semantic consequence. -/
 theorem all_satisfied_in_trans {M : Structure L} {T T' : Set (formula L)}
     (hMT : all_satisfied_in M T) (hTT' : all_satisfied T T') : all_satisfied_in M T' :=
   by
     intro f hf
     exact satisfied_in_trans hMT (hTT' hf)
 
+/-- Any member of a theory is a semantic consequence of that theory. -/
 theorem satisfied_of_mem {T : Set (formula L)} {f : formula L} (hf : f ∈ T) : satisfied T f :=
   fun _ _ hT => hT f hf
 
+/-- Semantic consequence is monotone in the conclusion set. -/
 theorem all_satisfied_of_subset {T T' : Set (formula L)} (h : T' ⊆ T) : all_satisfied T T' :=
   by
     intro f hf
     exact satisfied_of_mem (h hf)
 
+/-- Semantic consequence composes transitively. -/
 theorem satisfied_trans {T₁ T₂ : Set (formula L)} {f : formula L}
     (h₁₂ : all_satisfied T₁ T₂) (h₂f : satisfied T₂ f) : satisfied T₁ f :=
   fun M v hT₁ => h₂f M v (fun g hg => h₁₂ hg M v hT₁)
 
+/-- Pointwise semantic consequence composes transitively. -/
 theorem all_satisfied_trans {T₁ T₂ T₃ : Set (formula L)}
     (h₁₂ : all_satisfied T₁ T₂) (h₂₃ : all_satisfied T₂ T₃) : all_satisfied T₁ T₃ :=
   by
     intro f hf
     exact satisfied_trans h₁₂ (h₂₃ hf)
 
+/-- Weakening assumptions preserves semantic consequence. -/
 theorem satisfied_weakening {T T' : Set (formula L)} (h : T ⊆ T') {f : formula L}
     (hTf : satisfied T f) : satisfied T' f :=
   fun M v hT' => hTf M v (fun g hg => hT' g (h hg))
 
+/-- Every derivable formula is semantically valid from the same assumptions. -/
 theorem formula_soundness {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢ A) : Γ ⊨ A := by
   intro M
   induction h with

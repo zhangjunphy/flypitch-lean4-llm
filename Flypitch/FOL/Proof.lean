@@ -7,8 +7,15 @@ universe u
 namespace Flypitch
 namespace fol
 
+/-!
+`Flypitch.FOL.Proof` defines the natural-deduction proof system for the first-order language
+developed in this repository, together with the structural operations on derivations that are
+used throughout the completeness proof.
+-/
+
 variable {L : Language}
 
+/-- Natural-deduction derivations from a set of assumptions. -/
 inductive prf : Set (formula L) → formula L → Type u
   | axm {Γ A} : A ∈ Γ → prf Γ A
   | impI {Γ : Set (formula L)} {A B} : prf (insert A Γ) B → prf Γ (A ⟹ B)
@@ -22,28 +29,34 @@ inductive prf : Set (formula L) → formula L → Type u
 
 infix:51 " ⊢ " => prf
 
+/-- Propositional truncation of derivability. -/
 def provable (T : Set (formula L)) (f : formula L) : Prop :=
   Nonempty (T ⊢ f)
 
 infix:51 " ⊢' " => provable
 
+/-- Eliminate a universal quantifier and rewrite to a chosen target formula. -/
 noncomputable def allE {Γ : Set (formula L)} (A : formula L) (t : term L) {B : formula L}
     (h₁ : Γ ⊢ ∀' A) (h₂ : subst_formula A t 0 = B) : Γ ⊢ B := by
   cases h₂
   exact prf.allE₂ A t h₁
 
+/-- Equality substitution followed by a rewrite to a chosen target formula. -/
 noncomputable def subst {Γ : Set (formula L)} {s t : term L} (f₁ : formula L) {f₂ : formula L}
     (h₁ : Γ ⊢ s ≃ t) (h₂ : Γ ⊢ subst_formula f₁ s 0) (h₃ : subst_formula f₁ t 0 = f₂) :
     Γ ⊢ f₂ := by
   cases h₃
   exact prf.subst₂ s t f₁ h₁ h₂
 
+/-- The most recently inserted assumption is available immediately. -/
 noncomputable def axm1 {Γ : Set (formula L)} {A : formula L} : insert A Γ ⊢ A :=
   prf.axm (by simp)
 
+/-- The second most recently inserted assumption is available immediately. -/
 noncomputable def axm2 {Γ : Set (formula L)} {A B : formula L} : insert A (insert B Γ) ⊢ B :=
   prf.axm (by simp)
 
+/-- Weakening of assumptions for derivations. -/
 noncomputable def weakening {Γ Δ : Set (formula L)} {f : formula L}
     (h₁ : Γ ⊆ Δ) (h₂ : Γ ⊢ f) : Δ ⊢ f := by
   induction h₂ generalizing Δ with
@@ -80,12 +93,14 @@ noncomputable def weakening {Γ Δ : Set (formula L)} {f : formula L}
   | subst₂ s t f hEq hSub ihEq ihSub =>
       exact prf.subst₂ s t f (ihEq h₁) (ihSub h₁)
 
+/-- One-step weakening by adding an irrelevant assumption. -/
 noncomputable def weakening1 {Γ : Set (formula L)} {f₁ f₂ : formula L}
     (h : Γ ⊢ f₂) : insert f₁ Γ ⊢ f₂ :=
   weakening (by
     intro x hx
     exact Or.inr hx) h
 
+/-- Two-step weakening that preserves the distinguished first inserted assumption. -/
 noncomputable def weakening2 {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
     (h : insert f₁ Γ ⊢ f₂) : insert f₁ (insert f₃ Γ) ⊢ f₂ :=
   weakening (by
@@ -95,73 +110,88 @@ noncomputable def weakening2 {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
     · exact Or.inl rfl
     · exact Or.inr (Or.inr hx)) h
 
+/-- Truncated implication introduction. -/
 noncomputable def impI' {Γ : Set (formula L)} {A B : formula L} (h : insert A Γ ⊢' B) :
     Γ ⊢' (A ⟹ B) := by
   rcases h with ⟨h⟩
   exact ⟨prf.impI h⟩
 
+/-- Truncated implication elimination. -/
 noncomputable def impE' {Γ : Set (formula L)} (A : formula L) {B : formula L}
     (h₁ : Γ ⊢' (A ⟹ B)) (h₂ : Γ ⊢' A) : Γ ⊢' B := by
   rcases h₁ with ⟨h₁⟩
   rcases h₂ with ⟨h₂⟩
   exact ⟨prf.impE A h₁ h₂⟩
 
+/-- Truncated ex falso rule under an explicit negated assumption. -/
 noncomputable def falsumE' {Γ : Set (formula L)} {A : formula L} (h : insert (∼A) Γ ⊢' ⊥) :
     Γ ⊢' A := by
   rcases h with ⟨h⟩
   exact ⟨prf.falsumE h⟩
 
+/-- Truncated universal introduction. -/
 noncomputable def allI' {Γ : Set (formula L)} {A : formula L} (h : lift_formula1 '' Γ ⊢' A) :
     Γ ⊢' ∀' A := by
   rcases h with ⟨h⟩
   exact ⟨prf.allI h⟩
 
+/-- Truncated universal elimination. -/
 noncomputable def allE₂' {Γ : Set (formula L)} {A : formula L} {t : term L} (h : Γ ⊢' ∀' A) :
     Γ ⊢' subst_formula A t 0 := by
   rcases h with ⟨h⟩
   exact ⟨prf.allE₂ A t h⟩
 
+/-- Truncated reflexivity of equality. -/
 noncomputable def ref' (Γ : Set (formula L)) (t : term L) : Γ ⊢' (t ≃ t) :=
   ⟨prf.ref Γ t⟩
 
+/-- Truncated equality substitution. -/
 noncomputable def subst₂' {Γ : Set (formula L)} (s t : term L) (f : formula L)
     (h₁ : Γ ⊢' (s ≃ t)) (h₂ : Γ ⊢' subst_formula f s 0) : Γ ⊢' subst_formula f t 0 := by
   rcases h₁ with ⟨h₁⟩
   rcases h₂ with ⟨h₂⟩
   exact ⟨prf.subst₂ s t f h₁ h₂⟩
 
+/-- Weakening for truncated derivations. -/
 noncomputable def weakening' {Γ Δ : Set (formula L)} {f : formula L} (h₁ : Γ ⊆ Δ)
     (h₂ : Γ ⊢' f) : Δ ⊢' f := by
   rcases h₂ with ⟨h₂⟩
   exact ⟨weakening h₁ h₂⟩
 
+/-- One-step weakening for truncated derivations. -/
 noncomputable def weakening1' {Γ : Set (formula L)} {f₁ f₂ : formula L} (h : Γ ⊢' f₂) :
     insert f₁ Γ ⊢' f₂ := by
   rcases h with ⟨h⟩
   exact ⟨weakening1 h⟩
 
+/-- Two-step weakening for truncated derivations. -/
 noncomputable def weakening2' {Γ : Set (formula L)} {f₁ f₂ f₃ : formula L}
     (h : insert f₁ Γ ⊢' f₂) : insert f₁ (insert f₃ Γ) ⊢' f₂ := by
   rcases h with ⟨h⟩
   exact ⟨weakening2 h⟩
 
+/-- Modus ponens with the antecedent inserted as an extra assumption. -/
 noncomputable def deduction {Γ : Set (formula L)} {A B : formula L} (h : Γ ⊢ (A ⟹ B)) :
     insert A Γ ⊢ B :=
   prf.impE A (weakening1 h) axm1
 
+/-- Derive any formula from falsum. -/
 noncomputable def exfalso {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢ (⊥ : formula L)) :
     Γ ⊢ A :=
   prf.falsumE (weakening1 h)
 
+/-- Truncated version of `exfalso`. -/
 noncomputable def exfalso' {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢' (⊥ : formula L)) :
     Γ ⊢' A := by
   rcases h with ⟨h⟩
   exact ⟨exfalso h⟩
 
+/-- Repackage a proof of `A ⟹ ⊥` as a proof of `∼A`. -/
 noncomputable def notI {Γ : Set (formula L)} {A : formula L} (h : Γ ⊢ (A ⟹ (⊥ : formula L))) :
     Γ ⊢ (∼A) := by
   simpa [fol.not] using h
 
+/-- Conjunction introduction. -/
 noncomputable def andI {Γ : Set (formula L)} {f₁ f₂ : formula L}
     (h₁ : Γ ⊢ f₁) (h₂ : Γ ⊢ f₂) : Γ ⊢ and f₁ f₂ := by
   apply prf.impI
@@ -171,6 +201,7 @@ noncomputable def andI {Γ : Set (formula L)} {f₁ f₂ : formula L}
     · exact weakening1 h₁
   · exact weakening1 h₂
 
+/-- Left projection from a conjunction. -/
 noncomputable def andE1 {Γ : Set (formula L)} {f₁ : formula L} (f₂ : formula L)
     (h : Γ ⊢ and f₁ f₂) : Γ ⊢ f₁ := by
   apply prf.falsumE
@@ -179,6 +210,7 @@ noncomputable def andE1 {Γ : Set (formula L)} {f₁ : formula L} (f₂ : formul
   apply exfalso
   exact prf.impE f₁ axm2 axm1
 
+/-- Right projection from a conjunction. -/
 noncomputable def andE2 {Γ : Set (formula L)} (f₁ : formula L) {f₂ : formula L}
     (h : Γ ⊢ and f₁ f₂) : Γ ⊢ f₂ := by
   apply prf.falsumE
@@ -186,16 +218,19 @@ noncomputable def andE2 {Γ : Set (formula L)} (f₁ : formula L) {f₂ : formul
   apply prf.impI
   exact axm2
 
+/-- Left introduction rule for disjunction. -/
 noncomputable def orI1 {Γ : Set (formula L)} {A B : formula L} (h : Γ ⊢ A) :
     Γ ⊢ or A B := by
   apply prf.impI
   apply exfalso
   exact prf.impE _ axm1 (weakening1 h)
 
+/-- Right introduction rule for disjunction. -/
 noncomputable def orI2 {Γ : Set (formula L)} {A B : formula L} (h : Γ ⊢ B) :
     Γ ⊢ or A B := by
   simpa [fol.or] using prf.impI (weakening1 h)
 
+/-- Disjunction elimination. -/
 noncomputable def orE {Γ : Set (formula L)} {A B C : formula L}
     (h₁ : Γ ⊢ or A B) (h₂ : insert A Γ ⊢ C) (h₃ : insert B Γ ⊢ C) : Γ ⊢ C := by
   apply prf.falsumE
@@ -206,20 +241,24 @@ noncomputable def orE {Γ : Set (formula L)} {A B C : formula L}
     · apply prf.impE _ (weakening1 h₁)
       exact prf.impI (prf.impE _ axm2 (weakening2 h₂))
 
+/-- Biconditional introduction. -/
 noncomputable def biimpI {Γ : Set (formula L)} {f₁ f₂ : formula L}
     (h₁ : insert f₁ Γ ⊢ f₂) (h₂ : insert f₂ Γ ⊢ f₁) : Γ ⊢ biimp f₁ f₂ := by
   apply andI
   · exact prf.impI h₁
   · exact prf.impI h₂
 
+/-- Extract the forward implication from a biconditional. -/
 noncomputable def biimpE1 {Γ : Set (formula L)} {f₁ f₂ : formula L}
     (h : Γ ⊢ biimp f₁ f₂) : insert f₁ Γ ⊢ f₂ :=
   deduction (andE1 (f₂ := (f₂ ⟹ f₁)) h)
 
+/-- Extract the backward implication from a biconditional. -/
 noncomputable def biimpE2 {Γ : Set (formula L)} {f₁ f₂ : formula L}
     (h : Γ ⊢ biimp f₁ f₂) : insert f₂ Γ ⊢ f₁ :=
   deduction (andE2 (f₁ := (f₁ ⟹ f₂)) h)
 
+/-- Existential introduction by providing a witness term. -/
 noncomputable def exI {Γ : Set (formula L)} {f : formula L} (t : term L)
     (h : Γ ⊢ subst_formula f t 0) : Γ ⊢ ex f := by
   apply prf.impI
@@ -227,6 +266,7 @@ noncomputable def exI {Γ : Set (formula L)} {f : formula L} (t : term L)
   · exact prf.allE₂ (∼f) t axm1
   · exact weakening1 h
 
+/-- Existential elimination using a lifted derivation from a fresh witness. -/
 noncomputable def exE {Γ : Set (formula L)} {f₁ f₂ : formula L} (h₁ : Γ ⊢ ex f₁)
     (h₂ : insert f₁ (lift_formula1 '' Γ) ⊢ lift_formula1 f₂) : Γ ⊢ f₂ := by
   apply prf.falsumE
@@ -236,6 +276,7 @@ noncomputable def exE {Γ : Set (formula L)} {f₁ f₂ : formula L} (h₁ : Γ 
   rw [Set.image_insert_eq]
   exact prf.impE _ axm2 (weakening2 h₂)
 
+/-- Lift every formula appearing in a derivation by the same shift. -/
 noncomputable def prf_lift {Γ : Set (formula L)} {f : formula L} (n m : Nat) (h : Γ ⊢ f) :
     Set.image (fun g : formula L => lift_formula_at g n m) Γ ⊢ lift_formula_at f n m := by
   induction h generalizing m with
@@ -275,6 +316,7 @@ noncomputable def prf_lift {Γ : Set (formula L)} {f : formula L} (n m : Nat) (h
         (by simpa using (ihSub (m := m)))
         (lift_at_subst_formula_small0 (f := f) (s := t) n m)
 
+/-- Substitute a term throughout a derivation and all of its assumptions. -/
 noncomputable def substitution {Γ : Set (formula L)} {f : formula L} (t : term L) (n : Nat)
     (h : Γ ⊢ f) :
     Set.image (fun g : formula L => subst_formula g t n) Γ ⊢ subst_formula f t n := by
@@ -335,6 +377,7 @@ noncomputable def substitution {Γ : Set (formula L)} {f : formula L} (t : term 
         (by simpa [subst_formula2_zero (f := f) (s₁ := s) (s₂ := t) n] using (ihSub (n := n)))
         (subst_formula2_zero (f := f) (s₁ := u) (s₂ := t) n).symm
 
+/-- Cancel a single lifting step by substituting the fresh variable back in. -/
 noncomputable def reflect_prf_lift1 {Γ : Set (formula L)} {f : formula L}
     (h : lift_formula1 '' Γ ⊢ lift_formula f 1) : Γ ⊢ f := by
   have h' := substitution (&0 : term L) 0 h

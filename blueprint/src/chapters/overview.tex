@@ -1,0 +1,94 @@
+\chapter{Overview}
+\label{chap:overview}
+
+Flypitch Lean 4 is a port of the original Lean 3 Flypitch development.
+The long-term target is the theorem that the continuum hypothesis is
+independent of ZFC. The original project reaches that theorem by combining
+three layers:
+\begin{itemize}
+\item a first-order logic and completeness development,
+\item Boolean-valued models and forcing,
+\item a ZFC formalization that connects the two branches.
+\end{itemize}
+
+At the moment, the Lean 4 repository has progressed far along the
+logic/completeness branch. The forcing and ZFC branch is still largely
+unported. This blueprint therefore begins by documenting the material that
+already exists and is checked in Lean 4, rather than presenting the full
+independence proof as if it had already been reconstructed.
+
+\section{Implemented Surface}
+
+The verified Lean 4 surface currently includes:
+\begin{itemize}
+\item first-order languages, terms, formulas, and substitution,
+\item a natural deduction proof system and its soundness theorem,
+\item sentence and theory infrastructure,
+\item compactness at the proof and theory level,
+\item maximal consistent extensions,
+\item directed colimits and language-extension machinery,
+\item the Henkin language chain and the consistency side of henkinization.
+\end{itemize}
+
+In other words, the repository already contains the logic needed to pass from
+raw first-order syntax to complete Henkin theories. The later forcing-side
+modules that ultimately produce models of $\neg\mathrm{CH}$ and
+$\mathrm{CH}$ are still to be ported.
+
+\section{How To Read This Blueprint}
+
+The chapters are organized by mathematical construction rather than by raw file
+order. Each chapter explains:
+\begin{itemize}
+\item the mathematical object being formalized,
+\item why that object is needed in the overall strategy,
+\item the main Lean declarations that implement it.
+\end{itemize}
+
+The present pass starts with the first-order logic core, because every later
+chapter depends on its treatment of de Bruijn variables, derivability,
+satisfaction, and theories.
+
+\section{Blueprint Roadmap}
+
+The current blueprint is organized as a logic-side progression.
+
+\begin{itemize}
+\item Chapter~\ref{chap:fol-core} develops the first-order core: syntax,
+proofs, semantics, and theories.
+\item Chapter~\ref{chap:compactness-completion} explains how compactness and
+completion turn consistency into complete consistent extensions.
+\item Chapter~\ref{chap:colimits-language-extension} introduces the language
+maps and colimits needed to compare syntax across enlarging languages.
+\item Chapter~\ref{chap:henkinization} assembles those tools into the actual
+henkinization construction.
+\item Chapter~\ref{chap:status-next-frontier} records the present project
+boundary and the next unported branch.
+\end{itemize}
+
+\section{Current Boundary}
+
+The current frontier is not in the logic core any more. The logic-side
+Henkinization machinery has been ported far enough to produce complete Henkin
+extensions of consistent theories. The next genuine mathematical gap lies on
+the forcing side, beginning with the still-unported \texttt{pSet\_ordinal}
+development.
+
+\section{Implemented Dependency Chain}
+
+At the moment, the verified logic-side dependency chain can be read as:
+\begin{itemize}
+\item first-order syntax, proofs, semantics, and theories in
+Chapter~\ref{chap:fol-core},
+\item compactness and completion in
+Chapter~\ref{chap:compactness-completion},
+\item language colimits and extension/reflection machinery in
+Chapter~\ref{chap:colimits-language-extension},
+\item henkinization and complete Henkin extensions in
+Chapter~\ref{chap:henkinization}.
+\end{itemize}
+
+What is still missing on the logic/completeness side is the later packaging
+that would correspond to the remaining \texttt{completeness} module. Beyond
+that, the next entirely unported branch begins on the forcing side at
+\texttt{pSet\_ordinal}.

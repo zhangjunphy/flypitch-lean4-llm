@@ -1,0 +1,282 @@
+\chapter{Colimits And Language Extensions}
+\label{chap:colimits-language-extension}
+
+This chapter explains the infrastructure developed in:
+\begin{itemize}
+\item \texttt{Flypitch/Colimit.lean}
+\item \texttt{Flypitch/LanguageExtension.lean}
+\end{itemize}
+The purpose of this layer is to make it possible to compare formulas that live
+in different languages, move proofs and models along language maps, and
+eventually assemble the infinite Henkin language as a directed colimit.
+
+It builds on the bounded syntax and theory infrastructure from
+Chapter~\ref{chap:fol-core} and supplies the technical transport lemmas used
+throughout Chapter~\ref{chap:henkinization}.
+
+\section{Directed Diagrams And Their Colimits}
+
+The Henkin construction enlarges the language step by step, so one needs a way
+to speak about the limit of a directed family of languages and of the syntax
+built over them. The file \texttt{Flypitch/Colimit.lean} develops exactly the
+colimit construction needed for this.
+
+\begin{definition}[Directed Type And Directed Diagram]
+A \emph{directed type} is a type equipped with a reflexive, transitive, and
+directed relation. A \emph{directed diagram} over such a type assigns an object
+to each index and a transition map along each relation, subject to the expected
+compatibility law for composition.
+\end{definition}
+
+In Lean these are the structures \texttt{directed\_type} and
+\texttt{directed\_diagram}. The special case of the natural numbers ordered by
+$\le$ is packaged as the definition \texttt{directed\_type\_of\_nat}, together
+with a local alias used later in the code.
+
+\begin{definition}[Colimit As Germs]
+Given a directed diagram $F$, the repository first forms the coproduct of all
+objects in the diagram. Two elements of this coproduct are declared equivalent
+when they eventually map to the same element at some common upper bound. The
+colimit is then the quotient by this germ relation.
+\end{definition}
+
+The coproduct is \texttt{coproduct\_of\_directed\_diagram}, the relation is
+\texttt{germ\_relation}, and the quotient colimit is \texttt{colimit F}. The
+theorem \texttt{germ\_equivalence} shows that the germ relation is indeed an
+equivalence relation.
+
+\begin{proposition}[Canonical Maps Into The Colimit]
+\label{prop:canonical-map-colimit}
+Each object of a directed diagram maps canonically into the colimit.
+\end{proposition}
+
+\begin{proof}
+The map is \texttt{canonical\_map}. The key companion injectivity theorem is:
+\begin{itemize}
+\item \texttt{canonical\_map\_inj\_of\_transition\_maps\_inj}
+\end{itemize}
+It says that if all transition maps of the diagram are injective, then every
+canonical map into the colimit is injective as well.
+\end{proof}
+
+\begin{proposition}[Universal Property]
+\label{prop:colimit-universal}
+The quotient colimit carries the expected cocone, and every cocone out of the
+diagram induces a unique map from the colimit.
+\end{proposition}
+
+\begin{proof}
+The canonical cocone is \texttt{cocone\_of\_colimit}, and the induced map is
+\texttt{universal\_map}. The theorem
+\texttt{universal\_map\_inj\_of\_components\_inj} records a useful injectivity
+criterion: if all cocone components are injective, then the universal map is
+injective.
+\end{proof}
+
+The file ends with a few concrete lemmas for $\omega$-indexed colimits. The
+main bookkeeping lemmas are:
+\begin{itemize}
+\item \texttt{same\_fiber\_as\_push\_to\_sum\_r}
+\item \texttt{same\_fiber\_as\_push\_to\_sum\_l}
+\end{itemize}
+They let later proofs compare two representatives by pushing them to a common
+stage.
+
+\section{Language Maps}
+
+The second file introduces explicit maps between first-order languages.
+
+\begin{definition}[Language Homomorphism]
+A map of languages $L \to L'$ consists of arity-preserving maps on function
+symbols and on relation symbols. In Lean this is the structure \texttt{Lhom},
+with a dedicated infix notation for language maps in the code.
+\end{definition}
+
+The basic operations are all present:
+\begin{itemize}
+\item identity maps and composition,
+\item the inclusions into a sum language,
+\item injectivity of a language map, packaged as \texttt{Lhom.is\_injective},
+\item decidable range, packaged as \texttt{Lhom.has\_decidable\_range}.
+\end{itemize}
+
+The constructions \texttt{on\_term} and \texttt{on\_formula} transport syntax
+along a language homomorphism. The file proves that these actions commute with
+the structural operations from the first-order core:
+\begin{itemize}
+\item lifting,
+\item substitution,
+\item iterated application,
+\item composition and identity.
+\end{itemize}
+
+This is the syntactic transport layer that later lets a proof written in one
+language be reinterpreted inside a larger language.
+
+\section{Tracking Symbols}
+
+Much of the later Henkin argument depends on knowing whether a particular
+constant symbol occurs in a term or formula. For that reason the file defines
+the set of symbols appearing in a piece of syntax:
+\begin{itemize}
+\item \texttt{symbols\_in\_term},
+\item \texttt{symbols\_in\_formula}.
+\end{itemize}
+
+The basic lemmas show that lifting does not change symbol support, while
+substitution adds at most the symbols already present in the substituted term.
+There are also companion lemmas explaining that if a symbol is not in the range
+of a language map, then it does not appear after transporting syntax along that
+map.
+
+These support computations are not optional technical clutter. They are the
+mechanism that makes ``fresh constant'' arguments precise later on.
+
+\section{Filtering A Language By Symbols}
+
+\begin{definition}[Filtered Language]
+Given a predicate $p$ on the symbols of a language $L$, the language
+\texttt{filter\_symbols p} keeps exactly the symbols satisfying $p$.
+\end{definition}
+
+The canonical map back to the original language is
+\texttt{filter\_symbols\_Lhom p}, and it is injective by
+\texttt{is\_injective\_filter\_symbols\_Lhom}. The two reconstruction lemmas
+\begin{itemize}
+\item \texttt{find\_term\_filter\_symbols}
+\item \texttt{find\_formula\_filter\_symbols}
+\end{itemize}
+say that if all symbols appearing in a term or formula satisfy $p$, then that
+syntax actually comes from the filtered language.
+
+Conceptually, this lets the development remove a forbidden symbol from the
+ambient language and then work entirely inside the smaller language that
+contains only the allowed symbols.
+
+\section{Transporting Proofs And Models}
+
+The syntactic action of a language map extends in two directions.
+
+\begin{proposition}[Proof Transport]
+\label{prop:on-prf}
+A proof in a language $L$ can be pushed forward along a language map
+$\varphi : L \to L'$ to obtain a proof in $L'$.
+\end{proposition}
+
+\begin{proof}
+This is \texttt{on\_prf}, with the sentence-level form \texttt{on\_sprf}. The
+inductive proof simply applies \texttt{on\_formula} and \texttt{on\_term} to
+every step of a derivation and uses the commutation lemmas for substitution and
+quantifiers where needed.
+\end{proof}
+
+At the semantic level, a structure on the larger language can be restricted
+along a language homomorphism.
+
+\begin{definition}[Reduct]
+Given $\varphi : L \to L'$ and an $L'$-structure $M$, the \emph{reduct}
+\texttt{reduct} of $M$ along $\varphi$ is the $L$-structure obtained by
+forgetting the symbols of $L'$ that do not come from $L$.
+\end{definition}
+
+The theorem \texttt{reduct\_formula\_iff} states that realizing a transported
+formula in $M$ is equivalent to realizing the original formula in the reduct.
+At the sentence and theory level this yields
+\texttt{reduct\_realize\_sentence} and
+\texttt{reduct\_all\_realize\_sentence}.
+
+\section{Reflection Along Injective Maps}
+
+Forward transport is easy. Going backward is subtler: to reflect a proof from a
+larger language to a smaller one, one needs to recover preimages of symbols.
+That is why the file assumes both injectivity and decidable range.
+
+\begin{definition}[Reflection]
+For an injective language map $\varphi : L \to L'$ with decidable range, the
+definitions \texttt{reflect\_term} and \texttt{reflect\_formula} try to pull
+syntax in $L'$ back to syntax in $L$.
+\end{definition}
+
+If a symbol of $L'$ lies in the range of $\varphi$, reflection chooses its
+preimage. If not, reflection inserts a fresh variable at a designated index.
+This replacement-by-variable is the key idea: instead of failing on genuinely
+new symbols, reflection records them as open slots.
+
+The long collection of lemmas following these definitions proves that
+reflection behaves exactly as needed:
+\begin{itemize}
+\item it inverts \texttt{on\_term} and \texttt{on\_formula} up to a controlled
+lifting operation;
+\item it commutes with lifting and substitution;
+\item it turns a proof over transported formulas back into a proof in the
+original language.
+\end{itemize}
+
+The main proof-theoretic output is:
+\begin{itemize}
+\item \texttt{reflect\_prf}
+\item \texttt{reflect\_sprf}
+\item \texttt{is\_consistent\_Theory\_induced}
+\end{itemize}
+Together these show that an injective language map preserves consistency of the
+induced theory.
+
+\section{Fresh Constants And Generalization}
+
+The final goal of the chapter is not merely abstract language transport. It is
+the fresh-constant generalization package used later in Henkin witness
+arguments.
+
+\begin{definition}[Instantiating A Bounded Formula As A Sentence]
+If $f$ is a bounded formula with one free variable and $t$ is a closed term,
+then \texttt{boundedFormulaSubstSentence f t} is the sentence obtained by
+substituting $t$ for that variable.
+\end{definition}
+
+\begin{theorem}[Generalize A Fresh Constant]
+\label{thm:generalize-constant}
+Suppose a constant symbol $c$ does not occur in the assumptions $\Gamma$ and
+does not occur in a formula $f$. If $\Gamma$ proves the instance obtained by
+substituting $c$ into $f$, then $\Gamma$ proves $\forall f$.
+\end{theorem}
+
+\begin{proof}
+This is the theorem \texttt{generalize\_constant}. The argument removes the
+forbidden constant from the language by passing to a filtered language in which
+$c$ has been deleted. The assumptions and conclusion are reconstructed inside
+that smaller language using the symbol-support lemmas and the reconstruction
+theorems:
+\begin{itemize}
+\item \texttt{find\_term\_filter\_symbols}
+\item \texttt{find\_formula\_filter\_symbols}
+\end{itemize}
+
+The proof of the instantiated formula is then reflected back into the filtered
+language. Because the deleted constant is no longer available there, reflection
+replaces it by a fresh variable, exactly producing the universally quantified
+formula after one final cancellation lemma for lift-then-substitute.
+\end{proof}
+
+\begin{corollary}[Sentence-Level Generalization]
+The theorem \texttt{sgeneralize\_constant} packages the same argument for
+theories and bounded formulas, which is the form used later in the Henkin
+development.
+\end{corollary}
+
+\section{Role In The Henkin Construction}
+
+This chapter is the bridge between abstract proof theory and the actual Henkin
+machinery.
+
+\begin{itemize}
+\item The colimit construction is what later produces the infinite language
+\texttt{LInfty}.
+\item Language maps let syntax, proofs, and structures move between stages of
+the language chain.
+\item Reflection and fresh-constant generalization are the technical core of
+the witness-adjunction argument.
+\end{itemize}
+
+Without this layer, the later statement ``a proof using a fresh constant can be
+turned into a universally quantified proof without that constant'' would remain
+an informal slogan. Here it becomes a precise and reusable theorem.

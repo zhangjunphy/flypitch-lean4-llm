@@ -6,41 +6,9 @@
 % the current file can be a simple sequence of \input. Otherwise It
 % can start with a \section or \chapter for instance.
 
-\chapter{Overview}
-
-Flypitch Lean 4 is an in-progress Lean 4 port of the original
-\href{https://github.com/flypitch/flypitch}{Flypitch} Lean 3 development.
-The long-term target theorem is the independence of the continuum
-hypothesis.
-
-\section{Scope}
-
-The upstream project combines three major layers:
-\begin{itemize}
-\item a first-order logic and completeness development,
-\item Boolean-valued models and forcing,
-\item a ZFC formalization connecting the logic and forcing sides.
-\end{itemize}
-
-This repository is porting those layers incrementally rather than as a
-single large migration.
-
-\section{Current Status}
-
-The Lean 4 project already contains a working first-order logic base,
-compactness and completion, and ongoing port work on the
-language-extension and Henkin/completeness path.
-
-The forcing and ZFC branch is not fully ported yet, so this blueprint
-currently serves as project documentation and a place to record the
-eventual dependency structure of the full development.
-
-\section{Navigation}
-
-Use the project home page for links to:
-\begin{itemize}
-\item the generated blueprint website,
-\item the blueprint PDF,
-\item the API documentation,
-\item the GitHub repository.
-\end{itemize}
+\input{chapters/overview}
+\input{chapters/fol_core}
+\input{chapters/compactness_completion}
+\input{chapters/colimits_language_extension}
+\input{chapters/henkinization}
+\input{chapters/status_next_frontier}

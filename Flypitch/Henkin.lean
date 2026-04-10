@@ -1011,47 +1011,14 @@ noncomputable def equivBoundedFormulaComparison {L : Language.{u}} :
   Equiv.ofBijective (boundedFormulaComparison' (L := L))
     boundedFormulaComparison'_bijective
 
-private theorem boundedTermAt_subst_closed {L : Language.{u}} :
-    ∀ {l n : Nat} (t : preterm L l) {s : term L},
-      bounded_term_at t (n + 1) → bounded_term_at s 0 → bounded_term_at (subst_term t s n) n
-  | _, n, .var k, s, hk, hs => by
-      by_cases hlt : k < n
-      · simpa [subst_term, subst_realize, hlt] using hlt
-      · by_cases hgt : n < k
-        · exfalso
-          exact Nat.not_lt_of_ge (Nat.le_of_lt_succ hk) hgt
-        · have hEq : k = n := Nat.le_antisymm (Nat.le_of_not_gt hgt) (Nat.le_of_not_gt hlt)
-          subst k
-          have hs' : bounded_term_at (lift_term s n) n := by
-            have hlift : lift_term s n = s := by
-              simpa [lift_term] using bounded_term_at_lift_irrel (t := s) n 0 hs
-            simpa [hlift] using bounded_term_at_mono (t := s) hs (Nat.zero_le n)
-          simpa [subst_term, subst_realize, hlt, hgt] using hs'
-  | _, _, .func _, _, _, _ => trivial
-  | _, n, .app t₁ t₂, s, ht, hs =>
-      ⟨boundedTermAt_subst_closed t₁ ht.1 hs, boundedTermAt_subst_closed t₂ ht.2 hs⟩
-
-private theorem boundedFormulaAt_subst_closed {L : Language.{u}} :
-    ∀ {l n : Nat} (f : preformula L l) {s : term L},
-      bounded_formula_at f (n + 1) → bounded_term_at s 0 → bounded_formula_at (subst_formula f s n) n
-  | _, _, .falsum, _, _, _ => trivial
-  | _, n, .equal t₁ t₂, s, hf, hs =>
-      ⟨boundedTermAt_subst_closed t₁ hf.1 hs, boundedTermAt_subst_closed t₂ hf.2 hs⟩
-  | _, _, .rel _, _, _, _ => trivial
-  | _, n, .apprel f t, s, hf, hs =>
-      ⟨boundedFormulaAt_subst_closed f hf.1 hs, boundedTermAt_subst_closed t hf.2 hs⟩
-  | _, n, .imp f₁ f₂, s, hf, hs =>
-      ⟨boundedFormulaAt_subst_closed f₁ hf.1 hs, boundedFormulaAt_subst_closed f₂ hf.2 hs⟩
-  | _, n, .all f, s, hf, hs => by
-      simpa [subst_formula] using boundedFormulaAt_subst_closed (n := n + 1) f hf hs
-
 @[reducible] def witProperty {L : Language.{u}} (f : bounded_formula L 1) (c : L.constants) :
     sentence L :=
   ⟨(bd_ex f).fst ⟹ subst_formula f.fst (bd_const c).fst 0,
     by
       simpa [bounded_formula_at] using
         (And.intro (bd_ex f).2
-          (boundedFormulaAt_subst_closed (n := 0) f.fst f.2 (bd_const (L := L) (n := 0) c).2))⟩
+          (bounded_formula_at_subst_closed (f := f.fst) (n := 0)
+            (s := (bd_const (L := L) (n := 0) c).fst) f.2 (bd_const (L := L) (n := 0) c).2))⟩
 
 def has_enough_constants {L : Language.{u}} (T : Theory L) : Prop :=
   ∃ C : bounded_formula L 1 → L.constants, ∀ f : bounded_formula L 1, T ⊢' witProperty f (C f)
@@ -1075,6 +1042,88 @@ def henkinTheoryChain {L : Language.{u}} (T : Theory L) :
     (n : Nat) → Theory (chainObjects L n)
   | 0 => T
   | n + 1 => henkinTheoryStep (henkinTheoryChain T n)
+
+/-- The standard existential premise used to show a Henkin witness step is admissible. -/
+noncomputable def provable_henkinWitnessBody {L : Language.{u}} {T : Theory L}
+    (f : bounded_formula L 1) : T ⊢ bd_ex (bd_imp (bounded_preformula.cast1 (bd_ex f)) f) := by
+  change Theory.fst T ⊢ ((bd_ex (bd_imp (bounded_preformula.cast1 (bd_ex f)) f) : sentence L) : formula L)
+  apply prf.falsumE
+  apply prf.impE (bd_ex f : formula L)
+  · apply prf.impI
+    apply prf.impE _ axm2
+    apply exE axm1
+    apply exI (&0 : term L)
+    rw [lift_subst_formula_cancel]
+    apply prf.impI
+    exact axm2
+  · apply prf.falsumE
+    apply prf.impE _ axm2
+    apply exI (&0 : term L)
+    apply prf.impI
+    apply exfalso
+    apply prf.impE _ axm2
+    let Γ' : Set (formula L) :=
+      insert (((bd_ex f : sentence L) : formula L) ⟹ (⊥ : formula L))
+        (insert ((((bd_ex (bd_imp (bounded_preformula.cast1 (bd_ex f)) f) : sentence L) : formula L) ⟹
+            (⊥ : formula L))) T.fst)
+    have hax :
+        insert (subst_formula (bounded_preformula.cast1 (bd_ex f)).fst (&0 : term L) 0) Γ' ⊢
+          subst_formula (bounded_preformula.cast1 (bd_ex f)).fst (&0 : term L) 0 := by
+      exact prf.axm (by simp [Γ'])
+    have hEq :
+        subst_formula (bounded_preformula.cast1 (bd_ex f)).fst (&0 : term L) 0 = (bd_ex f : formula L) := by
+      simpa [bounded_preformula.cast1_fst] using subst_sentence_irrel (bd_ex f) (&0 : term L)
+    exact cast
+      (congrArg
+        (fun A : formula L =>
+          insert (subst_formula (bounded_preformula.cast1 (bd_ex f)).fst (&0 : term L) 0) Γ' ⊢ A)
+        hEq)
+      hax
+
+lemma wit_not_mem_range_inclusion {L : Language.{u}} (f : bounded_formula L 1) :
+    wit' f ∉ Set.range (@Lhom.on_function _ _ (inclusion (L := L)) 0) := by
+  rintro ⟨c, hc⟩
+  cases hc
+
+lemma wit_not_mem_symbols_witnessBody {L : Language.{u}} (ψ ψ' : bounded_formula L 1) :
+    (Sum.inl ⟨0, wit' ψ⟩ : (languageStep L).symbols) ∉
+      symbols_in_formula (Lhom.on_bounded_formula (inclusion (L := L)) ψ').fst := by
+  exact Lhom.not_mem_function_in_formula_on_formula
+    (ϕ := inclusion (L := L)) (wit_not_mem_range_inclusion (L := L) ψ) (ψ' : formula L)
+
+lemma wit_not_mem_symbols_witProperty_of_ne {L : Language.{u}} {ψ ψ' : bounded_formula L 1}
+    (hneq : ψ' ≠ ψ) :
+    (Sum.inl ⟨0, wit' ψ⟩ : (languageStep L).symbols) ∉
+      symbols_in_formula
+        ((witProperty
+          (L := languageStep L)
+          (Lhom.on_bounded_formula (inclusion (L := L)) ψ')
+          (wit' ψ') : sentence (languageStep L)) : formula (languageStep L)) := by
+  intro hs
+  dsimp [witProperty] at hs
+  rcases hs with hs | hs
+  · exact Lhom.not_mem_function_in_formula_on_formula
+      (ϕ := inclusion (L := L)) (wit_not_mem_range_inclusion (L := L) ψ)
+      ((bd_ex ψ' : sentence L) : formula L) hs
+  · rcases symbols_in_formula_subst
+      (f := (Lhom.on_bounded_formula (inclusion (L := L)) ψ').fst)
+      (s := (bd_const (wit' ψ')).fst) (n := 0) hs with hsForm | hsTerm
+    · exact wit_not_mem_symbols_witnessBody (L := L) ψ ψ' hsForm
+    · have hsym :
+          (Sum.inl ⟨0, wit' ψ⟩ : (languageStep L).symbols) =
+            Sum.inl ⟨0, wit' ψ'⟩ := by
+        have hsTerm' :
+            (Sum.inl ⟨0, wit' ψ⟩ : (languageStep L).symbols) ∈
+              ({Sum.inl ⟨0, wit' ψ'⟩} : Set (languageStep L).symbols) := by
+          simpa [bd_const, bd_func] using hsTerm
+        exact Set.mem_singleton_iff.mp hsTerm'
+      have hwit : wit' ψ = wit' ψ' := by
+        have hpairs :
+            ((⟨0, wit' ψ⟩ : Σ n, (languageStep L).functions n)) =
+              ⟨0, wit' ψ'⟩ := Sum.inl.inj hsym
+        cases hpairs
+        rfl
+      exact hneq (languageFunctions.wit.inj hwit).symm
 
 def iota {L : Language.{u}} {T : Theory L} (m : Nat) : Theory (LInfty L) :=
   Lhom.Theory_induced (canonicalMap (L := L) m) (henkinTheoryChain T m)

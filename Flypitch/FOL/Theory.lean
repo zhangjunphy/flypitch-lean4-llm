@@ -80,6 +80,96 @@ theorem bounded_formula_at_lift_irrel : {l : Nat} → (f : preformula L l) → (
   | _, .all f, n, m, h => by
       simpa [lift_formula_at] using bounded_formula_at_lift_irrel f n (m + 1) h
 
+/-- Substituting at a variable bound already respected by a term has no effect. -/
+theorem bounded_term_at_subst_irrel : {l : Nat} → (t : preterm L l) → {n : Nat} →
+    bounded_term_at t n → (s : term L) → subst_term t s n = t
+  | _, .var k, _, hk, s => by
+      simpa using (subst_term_var_lt (L := L) (s := s) hk)
+  | _, .func _, _, _, _ => rfl
+  | _, .app t₁ t₂, _, h, s => by
+      simp [subst_term, bounded_term_at_subst_irrel t₁ h.1 s, bounded_term_at_subst_irrel t₂ h.2 s]
+
+/-- Substituting at a variable bound already respected by a formula has no effect. -/
+theorem bounded_formula_at_subst_irrel : {l : Nat} → (f : preformula L l) → {n : Nat} →
+    bounded_formula_at f n → (s : term L) → subst_formula f s n = f
+  | _, .falsum, _, _, _ => rfl
+  | _, .equal t₁ t₂, _, h, s => by
+      simp [subst_formula, bounded_term_at_subst_irrel t₁ h.1 s, bounded_term_at_subst_irrel t₂ h.2 s]
+  | _, .rel _, _, _, _ => rfl
+  | _, .apprel f t, _, h, s => by
+      simp [subst_formula, bounded_formula_at_subst_irrel f h.1 s, bounded_term_at_subst_irrel t h.2 s]
+  | _, .imp f₁ f₂, _, h, s => by
+      simp [subst_formula, bounded_formula_at_subst_irrel f₁ h.1 s, bounded_formula_at_subst_irrel f₂ h.2 s]
+  | _, .all f, _, h, s => by
+      simpa [subst_formula] using bounded_formula_at_subst_irrel f h s
+
+/-- Substituting a closed term into a term bounded by `n + 1` lowers the bound to `n`. -/
+theorem bounded_term_at_subst_closed : {l : Nat} → (t : preterm L l) → {n : Nat} → {s : term L} →
+    bounded_term_at t (n + 1) → bounded_term_at s 0 → bounded_term_at (subst_term t s n) n
+  | _, .var k, n, s, hk, hs => by
+      by_cases hlt : k < n
+      · simpa [subst_term, subst_realize, hlt] using hlt
+      · by_cases hgt : n < k
+        · exfalso
+          exact Nat.not_lt_of_ge (Nat.le_of_lt_succ hk) hgt
+        · have hEq : k = n := Nat.le_antisymm (Nat.le_of_not_gt hgt) (Nat.le_of_not_gt hlt)
+          subst k
+          have hs' : bounded_term_at (lift_term s n) n := by
+            have hlift : lift_term s n = s := by
+              simpa [lift_term] using bounded_term_at_lift_irrel (t := s) n 0 hs
+            simpa [hlift] using bounded_term_at_mono (t := s) hs (Nat.zero_le n)
+          simpa [subst_term, subst_realize, hlt, hgt] using hs'
+  | _, .func _, _, _, _, _ => trivial
+  | _, .app t₁ t₂, _, s, ht, hs => by
+      exact ⟨bounded_term_at_subst_closed t₁ ht.1 hs, bounded_term_at_subst_closed t₂ ht.2 hs⟩
+
+/-- Substituting a closed term into a formula bounded by `n + 1` lowers the bound to `n`. -/
+theorem bounded_formula_at_subst_closed : {l : Nat} → (f : preformula L l) → {n : Nat} → {s : term L} →
+    bounded_formula_at f (n + 1) → bounded_term_at s 0 → bounded_formula_at (subst_formula f s n) n
+  | _, .falsum, n, s, _, _ => trivial
+  | _, .equal t₁ t₂, n, s, hf, hs => by
+      exact ⟨bounded_term_at_subst_closed t₁ hf.1 hs, bounded_term_at_subst_closed t₂ hf.2 hs⟩
+  | _, .rel _, n, s, _, _ => trivial
+  | _, .apprel f t, n, s, hf, hs => by
+      exact ⟨bounded_formula_at_subst_closed f hf.1 hs, bounded_term_at_subst_closed t hf.2 hs⟩
+  | _, .imp f₁ f₂, n, s, hf, hs => by
+      exact ⟨bounded_formula_at_subst_closed f₁ hf.1 hs, bounded_formula_at_subst_closed f₂ hf.2 hs⟩
+  | _, .all f, n, s, hf, hs => by
+      simpa [subst_formula] using bounded_formula_at_subst_closed (f := f) (n := n + 1) (s := s) hf hs
+
+/-- Lifting above a bound and then substituting the new variable back in cancels for terms. -/
+theorem lift_subst_term_cancel : {l : Nat} → (t : preterm L l) → (n : Nat) →
+    subst_term (lift_term_at t 1 (n + 1)) (&0 : term L) n = t
+  | _, .var k, n => by
+      by_cases hlt : n < k
+      · have hle : n + 1 ≤ k := Nat.succ_le_of_lt hlt
+        have hgt : n < k + 1 := Nat.lt_succ_of_lt hlt
+        simp [lift_term_at, hle, subst_term_var_gt, hgt]
+      · by_cases heq : k = n
+        · subst k
+          have hnot : ¬ (n + 1 ≤ n) := Nat.not_succ_le_self n
+          simp [lift_term_at, hnot, subst_term_var_eq]
+        · have hklt : k < n := Nat.lt_of_le_of_ne (Nat.le_of_not_gt hlt) heq
+          have hnot : ¬ (n + 1 ≤ k) := Nat.not_le_of_gt (Nat.lt_succ_of_lt hklt)
+          simp [lift_term_at, hnot, subst_term_var_lt, hklt]
+  | _, .func _, _ => rfl
+  | _, .app t₁ t₂, n => by
+      simp [subst_term, lift_subst_term_cancel t₁ n, lift_subst_term_cancel t₂ n]
+
+/-- Lifting above a bound and then substituting the new variable back in cancels for formulas. -/
+theorem lift_subst_formula_cancel : {l : Nat} → (f : preformula L l) → (n : Nat) →
+    subst_formula (lift_formula_at f 1 (n + 1)) (&0 : term L) n = f
+  | _, .falsum, _ => rfl
+  | _, .equal t₁ t₂, n => by
+      simp [lift_formula_at, subst_formula, lift_subst_term_cancel t₁ n, lift_subst_term_cancel t₂ n]
+  | _, .rel _, _ => rfl
+  | _, .apprel f t, n => by
+      simp [lift_formula_at, subst_formula, lift_subst_formula_cancel f n, lift_subst_term_cancel t n]
+  | _, .imp f₁ f₂, n => by
+      simp [lift_formula_at, subst_formula, lift_subst_formula_cancel f₁ n, lift_subst_formula_cancel f₂ n]
+  | _, .all f, n => by
+      simpa [lift_formula_at, subst_formula] using lift_subst_formula_cancel (f := f) (n := n + 1)
+
 /-- Closed formulas, represented as formulas with no free variables. -/
 def sentence (L : Language.{u}) : Type u :=
   {f : formula L // bounded_formula_at f 0}
@@ -129,6 +219,11 @@ def sentence.ex (f : sentence L) : sentence L :=
 /-- Lifting a closed formula is definitionally irrelevant. -/
 theorem lift_sentence_irrel (f : sentence L) : lift_formula1 (f : formula L) = f := by
   simpa [lift_formula1, lift_formula] using bounded_formula_at_lift_irrel (f := (f : formula L)) 1 0 f.2
+
+/-- Substituting into a closed formula is definitionally irrelevant. -/
+theorem subst_sentence_irrel (f : sentence L) (s : term L) :
+    subst_formula (f : formula L) s 0 = f := by
+  simpa using bounded_formula_at_subst_irrel (f := (f : formula L)) (n := 0) f.2 s
 
 /-- A theory is a set of closed formulas. -/
 structure Theory (L : Language.{u}) : Type (u + 1) where

@@ -1238,6 +1238,100 @@ lemma is_consistent_Theory_induced (ϕ : L →ᴸ L') [has_decidable_range ϕ]
   rcases h with ⟨h⟩
   exact hT ⟨reflect_sprf (ϕ := ϕ) hϕ h⟩
 
+/-- A bounded formula instantiated at a closed term, repackaged as a sentence. -/
+def boundedFormulaSubstSentence {L : Language.{u}} (f : bounded_formula L 1) (t : closed_term L) :
+    sentence L :=
+  ⟨subst_formula f.fst t.fst 0, by
+    simpa using bounded_formula_at_subst_closed (f := f.fst) (n := 0) (s := t.fst) f.2 t.2⟩
+
+/-- Generalize away a fresh constant appearing only as the witness in a derivation. -/
+noncomputable def generalize_constant {Γ : Set (formula L)} (c : L.constants)
+    (hΓ : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ Set.sUnion (symbols_in_formula '' Γ))
+    {f : formula L} (hf : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ symbols_in_formula f)
+    (H : Γ ⊢ subst_formula f (preterm.func c) 0) : Γ ⊢ ∀' f := by
+  classical
+  apply prf.allI
+  let p : L.symbols → Prop := fun s => s ≠ Sum.inl ⟨0, c⟩
+  let ϕ : filter_symbols p →ᴸ L := filter_symbols_Lhom p
+  have hϕ : is_injective ϕ := is_injective_filter_symbols_Lhom p
+  have hc : c ∉ Set.range (@Lhom.on_function _ _ ϕ 0) := by
+    rintro ⟨c', hc'⟩
+    rcases c' with ⟨c', hc'prop⟩
+    dsimp [ϕ, filter_symbols_Lhom] at hc'
+    subst hc'
+    exact hc'prop rfl
+  have hf' : symbols_in_formula f ⊆ {s : L.symbols | p s} := by
+    intro s hs
+    dsimp [p]
+    intro hsEq
+    subst hsEq
+    exact hf hs
+  rcases find_formula_filter_symbols p f hf' with ⟨f', rfl⟩
+  let Γ' : Set (formula (filter_symbols p)) := on_formula ϕ ⁻¹' Γ
+  have hΓ' : on_formula ϕ '' Γ' = Γ := by
+    refine Set.image_preimage_eq_of_subset ?_
+    intro g hg
+    have hg' : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ symbols_in_formula g := by
+      intro hgc
+      exact hΓ ⟨symbols_in_formula g, Set.mem_image_of_mem _ hg, hgc⟩
+    have hg'' : symbols_in_formula g ⊆ {s : L.symbols | p s} := by
+      intro s hs
+      dsimp [p]
+      intro hsEq
+      subst hsEq
+      exact hg' hs
+    rcases find_formula_filter_symbols p g hg'' with ⟨g', rfl⟩
+    exact ⟨g', rfl⟩
+  letI : has_decidable_range ϕ :=
+    ⟨fun {n} => Classical.decPred _, fun {n} => Classical.decPred _⟩
+  have H' : on_formula ϕ '' Γ' ⊢ subst_formula (on_formula ϕ f') (preterm.func c) 0 := by
+    simpa [hΓ'] using H
+  have hRef : Set.image (fun g : formula L => reflect_formula ϕ g 0) (on_formula ϕ '' Γ') ⊢
+      reflect_formula ϕ (subst_formula (on_formula ϕ f') (preterm.func c) 0) 0 := by
+    exact reflect_prf_gen (ϕ := ϕ) hϕ 0 H'
+  have hSet :
+      Set.image (fun g : formula L => reflect_formula ϕ g 0) (on_formula ϕ '' Γ') =
+        lift_formula1 '' Γ' := by
+    ext x
+    constructor
+    · intro hx
+      rcases hx with ⟨y, ⟨z, hz, rfl⟩, hxy⟩
+      refine ⟨z, hz, ?_⟩
+      simpa [lift_formula1, lift_formula] using
+        (reflect_formula_on_formula (ϕ := ϕ) hϕ 0 z).symm.trans hxy
+    · intro hx
+      rcases hx with ⟨z, hz, rfl⟩
+      refine ⟨on_formula ϕ z, ⟨z, hz, rfl⟩, ?_⟩
+      simpa [lift_formula1, lift_formula] using reflect_formula_on_formula (ϕ := ϕ) hϕ 0 z
+  have hConcl :
+      reflect_formula ϕ (subst_formula (on_formula ϕ f') (preterm.func c) 0) 0 = f' := by
+    calc
+      reflect_formula ϕ (subst_formula (on_formula ϕ f') (preterm.func c) 0) 0 =
+          subst_formula (reflect_formula ϕ (on_formula ϕ f') 1) (reflect_term ϕ (preterm.func c) 0) 0 := by
+            simpa using reflect_formula_subst0 (ϕ := ϕ) hϕ (on_formula ϕ f') (preterm.func c) 0
+      _ = subst_formula (lift_formula_at f' 1 1) (&0 : term (filter_symbols p)) 0 := by
+            simp [reflect_formula_on_formula (ϕ := ϕ) hϕ 1 f', reflect_term_const_neg (ϕ := ϕ) hc 0]
+      _ = f' := by
+            simpa using lift_subst_formula_cancel (L := filter_symbols p) f' 0
+  have hRef' : lift_formula1 '' Γ' ⊢ f' := by
+    exact cast (by rw [hSet, hConcl]) hRef
+  rw [← hΓ']
+  have hLift :
+      (fun g : formula (filter_symbols p) => lift_formula1 (on_formula ϕ g)) =
+        fun g => on_formula ϕ (lift_formula1 g) := by
+    funext g
+    simpa [lift_formula1, lift_formula] using (on_formula_lift ϕ 1 g).symm
+  rw [Set.image_image, hLift, ← Set.image_image]
+  exact on_prf ϕ hRef'
+
+/-- Sentence-level specialization of `generalize_constant` for bounded formulas. -/
+noncomputable def sgeneralize_constant {T : Theory L} (c : L.constants)
+    (hΓ : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ Set.sUnion (symbols_in_formula '' Theory.fst T))
+    {f : bounded_formula L 1} (hf : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ symbols_in_formula f.fst)
+    (H : T ⊢ boundedFormulaSubstSentence f (bd_const c)) : T ⊢ bd_all f := by
+  simpa [sprf, boundedFormulaSubstSentence, bd_all] using
+    (generalize_constant (Γ := Theory.fst T) c hΓ hf (by simpa [sprf, boundedFormulaSubstSentence] using H))
+
 end Lhom
 
 end fol

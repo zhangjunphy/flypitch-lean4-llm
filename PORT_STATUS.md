@@ -75,6 +75,7 @@ The upstream project breaks into two large branches that meet in `zfc.lean`.
 - [x] Prove bijectivity of the term/formula comparison maps into `LInfty`.
 - [x] Port bounded-term/bounded-formula comparison bijectivity and the induced equivalence at bounded formulas.
 - [x] Port Henkin witness properties, `witInfty`, the raw `ι`/`T_infty` theory-chain scaffolding, and the enough-constants proof for `henkinization`.
+- [x] Port the fresh-constant generalization layer in `Flypitch/LanguageExtension.lean` (`boundedFormulaSubstSentence`, `generalize_constant`, `sgeneralize_constant`).
 - [ ] Prove consistency of the Henkin theory step and `ι`-chain, then finish the henkinization/completed-theory bridge.
 - [ ] Port `pSet_ordinal` as the first forcing-side hard dependency.
 - [ ] Port the topology/regular-open/collapse stack.
@@ -120,11 +121,13 @@ formula bookkeeping, reflection commuting with lift/substitution, proof reflecti
 (`reflect_prf_gen` / `reflect_prf` / `reflect_sprf`), and consistency preservation for
 induced theories.
 
-What is still missing is the fresh-constant and Henkin-specific consistency side: the
-`generalize_constant` / `is_consistent_extend` layer for one-step language extensions, then the
-proof that the Henkin theory step preserves consistency, reflection of inconsistency back along
-the `ι` embeddings, packaging the chain as a consistent directed union, and finally the bridge
-from `henkinization` to a completed Henkin theory.
+What is still missing is now the Henkin-specific consistency side on top of the freshly ported
+generalization layer. The repository has the reusable fresh-constant package in
+`LanguageExtension.lean` (`boundedFormulaSubstSentence`, `generalize_constant`,
+`sgeneralize_constant`), but it still needs the one-step consistency proof for the Henkin theory
+step, reflection of inconsistency back along the `ι` embeddings, packaging the chain as a
+consistent directed union, and finally the bridge from `henkinization` to a completed Henkin
+theory.
 
 The next Lean 4 tranche is:
 

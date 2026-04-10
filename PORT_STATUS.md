@@ -76,7 +76,7 @@ The upstream project breaks into two large branches that meet in `zfc.lean`.
 - [x] Port bounded-term/bounded-formula comparison bijectivity and the induced equivalence at bounded formulas.
 - [x] Port Henkin witness properties, `witInfty`, the raw `ι`/`T_infty` theory-chain scaffolding, and the enough-constants proof for `henkinization`.
 - [x] Port the fresh-constant generalization layer in `Flypitch/LanguageExtension.lean` (`boundedFormulaSubstSentence`, `generalize_constant`, `sgeneralize_constant`).
-- [ ] Finish the henkinization/completed-theory bridge on top of the now-ported `henkinTheoryStep`, `ι`-chain, and `T_infty` consistency proofs.
+- [x] Finish the henkinization/completed-theory bridge on top of the now-ported `henkinTheoryStep`, `ι`-chain, and `T_infty` consistency proofs.
 - [ ] Port `pSet_ordinal` as the first forcing-side hard dependency.
 - [ ] Port the topology/regular-open/collapse stack.
 - [ ] Port Boolean-valued models.
@@ -107,27 +107,21 @@ Every completed milestone must satisfy both checks:
 
 ## Next Blocker
 
-The next critical blocker is still the remaining theory-level half of upstream `henkin.lean`,
-but the frontier has moved forward again. The repository now has the directed-colimit,
+The Henkin tranche is now materially complete. The repository has the directed-colimit,
 language-extension, Henkin language-chain infrastructure, the induced comparison maps into
-`LInfty`, bijectivity for term/formula/bounded-term/bounded-formula comparison maps, and the
-bounded-formula equivalence needed to choose representatives. It also now has the witness
-property definition, the extracted `witInfty` representative, the recursive Henkin theory step,
-the raw `ι` chain inside `Theory (LInfty L)`, the induced inclusion lemmas along that chain,
-the `T_infty` union theory definition, the local enough-constants interface, and the proof that
-the raw `henkinization` already has enough constants. On the logic-support side,
-`LanguageExtension.lean` now also has the missing reflection infrastructure: image-theory
-formula bookkeeping, reflection commuting with lift/substitution, proof reflection
-(`reflect_prf_gen` / `reflect_prf` / `reflect_sprf`), and consistency preservation for
-induced theories.
+`LInfty`, bijectivity for term/formula/bounded-term/bounded-formula comparison maps, the
+bounded-formula equivalence needed to choose representatives, the witness-property definition,
+the extracted `witInfty` representative, the recursive Henkin theory step, the raw `ι` chain
+inside `Theory (LInfty L)`, the induced inclusion lemmas along that chain, the `T_infty` union
+theory definition, the enough-constants proof for `henkinization`, the fresh-constant
+generalization package in `LanguageExtension.lean`
+(`boundedFormulaSubstSentence`, `generalize_constant`, `sgeneralize_constant`), the one-step
+consistency proof `is_consistent_henkinTheoryStep`, the induced consistency of the full
+`henkinTheoryChain`, the consistency of each `iota n`, `T_infty`, and `henkinization`, and the
+bridge theorem producing a complete Henkin extension over `henkinization`.
 
-What is still missing is now the final Henkin packaging layer on top of the freshly ported
-generalization and consistency infrastructure. The repository has the reusable fresh-constant
-package in `LanguageExtension.lean` (`boundedFormulaSubstSentence`, `generalize_constant`,
-`sgeneralize_constant`), the one-step consistency proof
-`is_consistent_henkinTheoryStep` in `Henkin.lean`, the induced consistency of the full
-`henkinTheoryChain`, and the consistency of each `iota n`, `T_infty`, and `henkinization`.
-What remains is the bridge from `henkinization` to a completed Henkin theory.
+The next critical blocker has therefore shifted to the forcing side, starting with
+`pSet_ordinal`.
 
 The next Lean 4 tranche is:
 

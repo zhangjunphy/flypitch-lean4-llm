@@ -1030,6 +1030,15 @@ lemma has_enough_constants.intro {L : Language.{u}} (T : Theory L)
   choose C hC using H
   exact ⟨C, hC⟩
 
+lemma has_enough_constants_of_subset {L : Language.{u}} {T T' : Theory L}
+    (hsub : Theory.Subset T T') (hT : has_enough_constants T) :
+    has_enough_constants T' := by
+  rcases hT with ⟨C, hC⟩
+  refine ⟨C, ?_⟩
+  intro f
+  rcases hC f with ⟨hf⟩
+  exact ⟨sweakening hsub hf⟩
+
 def henkinTheoryStep {L : Language.{u}} (T : Theory L) : Theory (languageStep L) :=
   Lhom.Theory_induced (inclusion (L := L)) T ∪
     ((fun f : bounded_formula L 1 =>
@@ -1619,9 +1628,22 @@ theorem is_consistent_TInfty {L : Language.{u}} {T : Theory L} (hT : is_consiste
     exact ⟨sweakening hΓn hΓ⟩
   exact is_consistent_iota (T := T) hT n hBadIota
 
+/-- The Henkinization of a consistent theory is itself consistent. -/
 theorem is_consistent_henkinization {L : Language.{u}} {T : Theory L} (hT : is_consistent T) :
     is_consistent (henkinization (L := L) (T := T) hT) := by
   simpa [henkinization] using is_consistent_TInfty (T := T) hT
+
+/-- Complete a consistent Henkinization to a complete Henkin theory over it. -/
+noncomputable def completeHenkinizationOfConsis {L : Language.{u}} {T : Theory L}
+    (hT : is_consistent T) :
+    completeHenkinTheoryOver
+      (henkinization (L := L) (T := T) hT)
+      (is_consistent_henkinization (L := L) (T := T) hT) := by
+  let hHenkin : is_consistent (henkinization (L := L) (T := T) hT) :=
+    is_consistent_henkinization (L := L) (T := T) hT
+  rcases completion_of_consis (henkinization (L := L) (T := T) hT) hHenkin with ⟨T', hComplete⟩
+  refine ⟨T', ?_, hComplete⟩
+  exact has_enough_constants_of_subset T'.2.1 (henkinizationIsHenkin (L := L) (T := T) hT)
 
 end henkin
 

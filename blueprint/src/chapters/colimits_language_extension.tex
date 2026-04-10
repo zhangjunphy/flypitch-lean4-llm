@@ -22,6 +22,7 @@ built over them. The file \texttt{Flypitch/Colimit.lean} develops exactly the
 colimit construction needed for this.
 
 \begin{definition}[Directed Type And Directed Diagram]
+\label{def:directed-diagram}
 A \emph{directed type} is a type equipped with a reflexive, transitive, and
 directed relation. A \emph{directed diagram} over such a type assigns an object
 to each index and a transition map along each relation, subject to the expected
@@ -34,6 +35,8 @@ $\le$ is packaged as the definition \texttt{directed\_type\_of\_nat}, together
 with a local alias used later in the code.
 
 \begin{definition}[Colimit As Germs]
+\label{def:diagram-colimit}
+\uses{def:directed-diagram}
 Given a directed diagram $F$, the repository first forms the coproduct of all
 objects in the diagram. Two elements of this coproduct are declared equivalent
 when they eventually map to the same element at some common upper bound. The
@@ -47,6 +50,7 @@ equivalence relation.
 
 \begin{proposition}[Canonical Maps Into The Colimit]
 \label{prop:canonical-map-colimit}
+\uses{def:diagram-colimit}
 Each object of a directed diagram maps canonically into the colimit.
 \end{proposition}
 
@@ -61,6 +65,7 @@ canonical map into the colimit is injective as well.
 
 \begin{proposition}[Universal Property]
 \label{prop:colimit-universal}
+\uses{def:diagram-colimit,prop:canonical-map-colimit}
 The quotient colimit carries the expected cocone, and every cocone out of the
 diagram induces a unique map from the colimit.
 \end{proposition}
@@ -87,6 +92,8 @@ stage.
 The second file introduces explicit maps between first-order languages.
 
 \begin{definition}[Language Homomorphism]
+\label{def:language-hom}
+\uses{def:fol-language}
 A map of languages $L \to L'$ consists of arity-preserving maps on function
 symbols and on relation symbols. In Lean this is the structure \texttt{Lhom},
 with a dedicated infix notation for language maps in the code.
@@ -135,6 +142,8 @@ mechanism that makes ``fresh constant'' arguments precise later on.
 \section{Filtering A Language By Symbols}
 
 \begin{definition}[Filtered Language]
+\label{def:filtered-language}
+\uses{def:language-hom}
 Given a predicate $p$ on the symbols of a language $L$, the language
 \texttt{filter\_symbols p} keeps exactly the symbols satisfying $p$.
 \end{definition}
@@ -159,6 +168,7 @@ The syntactic action of a language map extends in two directions.
 
 \begin{proposition}[Proof Transport]
 \label{prop:on-prf}
+\uses{def:language-hom,def:fol-derivability}
 A proof in a language $L$ can be pushed forward along a language map
 $\varphi : L \to L'$ to obtain a proof in $L'$.
 \end{proposition}
@@ -174,6 +184,8 @@ At the semantic level, a structure on the larger language can be restricted
 along a language homomorphism.
 
 \begin{definition}[Reduct]
+\label{def:language-reduct}
+\uses{def:language-hom,def:fol-structure}
 Given $\varphi : L \to L'$ and an $L'$-structure $M$, the \emph{reduct}
 \texttt{reduct} of $M$ along $\varphi$ is the $L$-structure obtained by
 forgetting the symbols of $L'$ that do not come from $L$.
@@ -192,6 +204,8 @@ larger language to a smaller one, one needs to recover preimages of symbols.
 That is why the file assumes both injectivity and decidable range.
 
 \begin{definition}[Reflection]
+\label{def:language-reflection}
+\uses{def:language-hom,def:filtered-language}
 For an injective language map $\varphi : L \to L'$ with decidable range, the
 definitions \texttt{reflect\_term} and \texttt{reflect\_formula} try to pull
 syntax in $L'$ back to syntax in $L$.
@@ -228,6 +242,8 @@ the fresh-constant generalization package used later in Henkin witness
 arguments.
 
 \begin{definition}[Instantiating A Bounded Formula As A Sentence]
+\label{def:bounded-subst-sentence}
+\uses{def:fol-bounded-syntax}
 If $f$ is a bounded formula with one free variable and $t$ is a closed term,
 then \texttt{boundedFormulaSubstSentence f t} is the sentence obtained by
 substituting $t$ for that variable.
@@ -235,6 +251,7 @@ substituting $t$ for that variable.
 
 \begin{theorem}[Generalize A Fresh Constant]
 \label{thm:generalize-constant}
+\uses{def:filtered-language,def:language-reflection,def:bounded-subst-sentence,prop:on-prf}
 Suppose a constant symbol $c$ does not occur in the assumptions $\Gamma$ and
 does not occur in a formula $f$. If $\Gamma$ proves the instance obtained by
 substituting $c$ into $f$, then $\Gamma$ proves $\forall f$.
@@ -258,6 +275,8 @@ formula after one final cancellation lemma for lift-then-substitute.
 \end{proof}
 
 \begin{corollary}[Sentence-Level Generalization]
+\label{cor:sentence-generalize-constant}
+\uses{thm:generalize-constant}
 The theorem \texttt{sgeneralize\_constant} packages the same argument for
 theories and bounded formulas, which is the form used later in the Henkin
 development.

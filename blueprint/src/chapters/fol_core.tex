@@ -16,6 +16,7 @@ for this layer are:
 \section{Languages, Terms, And Formulas}
 
 \begin{definition}[First-Order Language]
+\label{def:fol-language}
 A first-order language consists of families of function and relation symbols,
 indexed by arity. In Lean this is the structure \texttt{Language}, with fields
 \texttt{functions} and \texttt{relations}.
@@ -42,6 +43,8 @@ This packaging lets the development treat symbols uniformly and avoids a large
 amount of repeated arity bookkeeping.
 
 \begin{definition}[Structural Operations]
+\label{def:fol-structural-ops}
+\uses{def:fol-language}
 The core structural operations are:
 \begin{itemize}
 \item \texttt{lift\_term\_at} and \texttt{lift\_formula\_at}, which raise free
@@ -58,6 +61,8 @@ eventually Henkin witness constructions.
 \section{Natural Deduction}
 
 \begin{definition}[Derivability]
+\label{def:fol-derivability}
+\uses{def:fol-language,def:fol-structural-ops}
 For a set $\Gamma$ of formulas, the inductive type \texttt{prf} formalizes
 natural-deduction derivations of $A$ from $\Gamma$. Its rules
 include:
@@ -83,6 +88,8 @@ throughout the compactness and completion arguments.
 \section{Structures And Satisfaction}
 
 \begin{definition}[Structure]
+\label{def:fol-structure}
+\uses{def:fol-language}
 An \texttt{L}-structure consists of a carrier type together with
 interpretations of all function and relation symbols of the language. The Lean
 name is \texttt{Structure L}.
@@ -104,6 +111,7 @@ natural-deduction rules line up with model-theoretic semantics.
 
 \begin{proposition}[Soundness]
 \label{prop:formula-soundness}
+\uses{def:fol-derivability,def:fol-structure,def:fol-structural-ops}
 If a formula $A$ is derivable from a set of assumptions $\Gamma$, then $A$ is a
 semantic consequence of $\Gamma$.
 \[
@@ -138,6 +146,8 @@ Henkin construction, where one must talk uniformly about formulas with a fixed
 number of open variables and then substitute closed witnesses into them.
 
 \begin{definition}[Bounded Syntax]
+\label{def:fol-bounded-syntax}
+\uses{def:fol-structural-ops}
 For each natural number $n$, the development defines:
 \begin{itemize}
 \item \texttt{bounded\_term L n},
@@ -156,6 +166,8 @@ binary function symbol, writes down the usual axioms for abelian groups, and
 interprets them in the integers.
 
 \begin{proposition}[Integers Satisfy The Abelian-Group Axioms]
+\label{prop:abelian-example}
+\uses{prop:formula-soundness}
 The structure \texttt{intStructure} satisfies the theory \texttt{TAb} of the
 chosen abelian-group language.
 \end{proposition}

@@ -21,6 +21,8 @@ Given a language $L$, the first operation is to adjoin a new constant symbol
 for every bounded formula with one free variable.
 
 \begin{definition}[One-Step Henkin Language]
+\label{def:henkin-one-step-language}
+\uses{def:fol-bounded-syntax}
 The type \texttt{languageFunctions L} adds two kinds of function symbols:
 \begin{itemize}
 \item the original function symbols of $L$,
@@ -41,6 +43,8 @@ available after adding new constants. The file therefore iterates the step
 construction.
 
 \begin{definition}[Henkin Language Chain]
+\label{def:henkin-language-chain}
+\uses{def:henkin-one-step-language,def:language-hom}
 The recursively defined languages \texttt{chainObjects L n} are given by:
 \begin{itemize}
 \item stage $0$ is the original language $L$,
@@ -60,6 +64,8 @@ inside a local namespace specialized to language-valued diagrams. The purpose
 is to take the directed colimit of the chain just described.
 
 \begin{definition}[Infinite Henkin Language]
+\label{def:linfty-language}
+\uses{def:henkin-language-chain,def:diagram-colimit}
 The colimit language of the chain \texttt{languageChain} is denoted
 \texttt{LInfty L}. The canonical map from stage $m$ into this colimit is
 \texttt{canonicalMap m}.
@@ -94,6 +100,7 @@ Each of these diagrams carries a cocone into the corresponding syntax over
 
 \begin{theorem}[Comparison Maps Are Bijective]
 \label{thm:henkin-comparison-bijective}
+\uses{def:linfty-language,prop:canonical-map-colimit,prop:colimit-universal,def:fol-bounded-syntax}
 The four comparison maps above are bijections.
 \end{theorem}
 
@@ -123,6 +130,8 @@ bridge that later lets the development choose witness constants in
 The next layer turns the language construction into a theory construction.
 
 \begin{definition}[Witness Property]
+\label{def:henkin-witness-property}
+\uses{def:fol-bounded-syntax}
 For a bounded formula $f$ with one free variable and a constant $c$, the
 sentence \texttt{witProperty f c} says:
 \[
@@ -141,6 +150,8 @@ complete extension of the henkinization is produced.
 \section{The One-Step Henkin Theory}
 
 \begin{definition}[Henkin Theory Step]
+\label{def:henkin-theory-step}
+\uses{def:henkin-one-step-language,def:henkin-witness-property}
 For a theory $T$ over $L$, write \texttt{henkinTheoryStep T} for the union of:
 \begin{itemize}
 \item the image of $T$ under the language inclusion into \texttt{languageStep
@@ -168,6 +179,7 @@ preserves consistency.
 
 \begin{theorem}[Consistency Of One Henkin Step]
 \label{thm:henkin-step-consistent}
+\uses{def:henkin-theory-step,thm:generalize-constant,thm:theory-proof-compactness}
 If $T$ is consistent, then \texttt{henkinTheoryStep T} is consistent.
 \end{theorem}
 
@@ -197,6 +209,8 @@ Once the one-step theorem is in place, the rest of the consistency story is an
 induction and colimit argument.
 
 \begin{definition}[Theories Inside \texttt{LInfty}]
+\label{def:tinfty-theories}
+\uses{def:linfty-language,def:henkin-theory-step}
 For each stage $m$, the theory \texttt{iota m} is the image of
 \texttt{henkinTheoryChain T m} inside \texttt{LInfty}. The full limit theory is
 \texttt{TInfty T}, defined as the union of all these stage images.
@@ -210,6 +224,7 @@ show that these stage theories form an increasing chain.
 
 \begin{theorem}[Consistency Along The Entire Henkin Chain]
 \label{thm:henkin-tinfty-consistent}
+\uses{thm:henkin-step-consistent,thm:theory-proof-compactness,def:tinfty-theories}
 If $T$ is consistent, then all finite Henkin stages are consistent, each
 \texttt{iota n} is consistent, the union \texttt{TInfty T} is consistent, and
 therefore the henkinization itself is consistent.
@@ -249,11 +264,25 @@ Conceptually, the argument is:
 \item identify it with the desired witness property for the original formula.
 \end{itemize}
 
+\begin{proposition}[Henkinization Has Enough Constants]
+\label{prop:henkinization-has-enough-constants}
+\uses{thm:henkin-comparison-bijective,def:henkin-witness-property}
+The consistent theory \texttt{henkinization} has enough constants.
+\end{proposition}
+
+\begin{proof}
+This is the theorem \texttt{henkinizationIsHenkin}. The proof uses the finite-stage
+representative chosen by \texttt{witInfty} and transports the corresponding witness
+axiom from a finite stage of the Henkin tower into \texttt{LInfty}.
+\end{proof}
+
 \section{Complete Henkin Theories Over A Consistent Base}
 
 The file packages the final output as follows.
 
 \begin{definition}[Henkin Language Over A Theory]
+\label{def:henkin-language-over}
+\uses{def:linfty-language}
 The language \texttt{henkinLanguage T} is just \texttt{LInfty} for the base
 language of $T$, and \texttt{henkinLanguageOver} is the canonical embedding of
 the original language into that limit language.
@@ -264,6 +293,7 @@ $T$ that are both complete and have enough constants.
 
 \begin{theorem}[Complete Henkinization Of A Consistent Theory]
 \label{thm:complete-henkinization}
+\uses{thm:henkin-tinfty-consistent,cor:completion-of-consistent-theory,prop:henkinization-has-enough-constants,def:henkin-language-over}
 Every consistent theory admits a complete Henkin extension over its
 henkinization.
 \end{theorem}

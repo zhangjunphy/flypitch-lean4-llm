@@ -1043,10 +1043,67 @@ def henkinTheoryChain {L : Language.{u}} (T : Theory L) :
   | 0 => T
   | n + 1 => henkinTheoryStep (henkinTheoryChain T n)
 
+/-- The one-variable formula whose existential closure is always provable in the witness step. -/
+@[reducible] def henkinWitnessBody {L : Language.{u}} (f : bounded_formula L 1) :
+    bounded_formula L 1 :=
+  bd_imp (bounded_preformula.cast1 (bd_ex f)) f
+
+/-- The concrete witness axiom adjoined for `f` in `henkinTheoryStep`. -/
+@[reducible] def henkinWitnessSentence {L : Language.{u}} (f : bounded_formula L 1) :
+    sentence (languageStep L) :=
+  Lhom.boundedFormulaSubstSentence
+    (henkinWitnessBody (Lhom.on_bounded_formula (inclusion (L := L)) f))
+    (bd_const (L := languageStep L) (n := 0) (wit' f))
+
+/-- The explicit witness sentence agrees with the older `witProperty` presentation. -/
+lemma henkinWitnessSentence_eq_witProperty {L : Language.{u}} (f : bounded_formula L 1) :
+    henkinWitnessSentence (L := L) f =
+      witProperty
+        (L := languageStep L)
+        (Lhom.on_bounded_formula (inclusion (L := L)) f)
+        (wit' f) := by
+  apply Subtype.ext
+  change
+    subst_formula
+        (((bounded_preformula.cast1
+          (bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f))).fst) ⟹
+          (Lhom.on_bounded_formula (inclusion (L := L)) f).fst)
+        (bd_const (L := languageStep L) (n := 0) (wit' f)).fst 0 =
+      ((bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f)).fst ⟹
+        subst_formula (Lhom.on_bounded_formula (inclusion (L := L)) f).fst
+          (bd_const (L := languageStep L) (n := 0) (wit' f)).fst 0)
+  have hCast :
+      subst_formula
+          (bounded_preformula.cast1
+            (bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f))).fst
+          (bd_const (L := languageStep L) (n := 0) (wit' f)).fst 0 =
+        (bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f)).fst := by
+    simpa [bounded_preformula.cast1_fst] using
+      subst_sentence_irrel
+        (bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f))
+        ((bd_const (L := languageStep L) (n := 0) (wit' f)).fst)
+  calc
+    subst_formula
+        (((bounded_preformula.cast1
+          (bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f))).fst) ⟹
+          (Lhom.on_bounded_formula (inclusion (L := L)) f).fst)
+        (bd_const (L := languageStep L) (n := 0) (wit' f)).fst 0 =
+      subst_formula
+          (bounded_preformula.cast1
+            (bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f))).fst
+          (bd_const (L := languageStep L) (n := 0) (wit' f)).fst 0 ⟹
+        subst_formula (Lhom.on_bounded_formula (inclusion (L := L)) f).fst
+          (bd_const (L := languageStep L) (n := 0) (wit' f)).fst 0 := by
+            rfl
+    _ = ((bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) f)).fst ⟹
+        subst_formula (Lhom.on_bounded_formula (inclusion (L := L)) f).fst
+          (bd_const (L := languageStep L) (n := 0) (wit' f)).fst 0) := by
+            rw [hCast]
+
 /-- The standard existential premise used to show a Henkin witness step is admissible. -/
 noncomputable def provable_henkinWitnessBody {L : Language.{u}} {T : Theory L}
-    (f : bounded_formula L 1) : T ⊢ bd_ex (bd_imp (bounded_preformula.cast1 (bd_ex f)) f) := by
-  change Theory.fst T ⊢ ((bd_ex (bd_imp (bounded_preformula.cast1 (bd_ex f)) f) : sentence L) : formula L)
+    (f : bounded_formula L 1) : T ⊢ bd_ex (henkinWitnessBody f) := by
+  change Theory.fst T ⊢ ((bd_ex (henkinWitnessBody f) : sentence L) : formula L)
   apply prf.falsumE
   apply prf.impE (bd_ex f : formula L)
   · apply prf.impI
@@ -1067,7 +1124,7 @@ noncomputable def provable_henkinWitnessBody {L : Language.{u}} {T : Theory L}
         (insert ((((bd_ex (bd_imp (bounded_preformula.cast1 (bd_ex f)) f) : sentence L) : formula L) ⟹
             (⊥ : formula L))) T.fst)
     have hax :
-        insert (subst_formula (bounded_preformula.cast1 (bd_ex f)).fst (&0 : term L) 0) Γ' ⊢
+      insert (subst_formula (bounded_preformula.cast1 (bd_ex f)).fst (&0 : term L) 0) Γ' ⊢
           subst_formula (bounded_preformula.cast1 (bd_ex f)).fst (&0 : term L) 0 := by
       exact prf.axm (by simp [Γ'])
     have hEq :
@@ -1124,6 +1181,180 @@ lemma wit_not_mem_symbols_witProperty_of_ne {L : Language.{u}} {ψ ψ' : bounded
         cases hpairs
         rfl
       exact hneq (languageFunctions.wit.inj hwit).symm
+
+lemma wit_not_mem_symbols_henkinWitnessBody {L : Language.{u}} (ψ : bounded_formula L 1) :
+    (Sum.inl ⟨0, wit' ψ⟩ : (languageStep L).symbols) ∉
+      symbols_in_formula
+        (henkinWitnessBody
+          (Lhom.on_bounded_formula (inclusion (L := L)) ψ)).fst := by
+  intro hs
+  dsimp [henkinWitnessBody] at hs
+  rcases hs with hs | hs
+  · have hsEx :
+          (Sum.inl ⟨0, wit' ψ⟩ : (languageStep L).symbols) ∈
+            symbols_in_formula ((bd_ex (Lhom.on_bounded_formula (inclusion (L := L)) ψ)).fst) := by
+        simpa [bounded_preformula.cast1_fst] using hs
+    have hs' :
+        (Sum.inl ⟨0, wit' ψ⟩ : (languageStep L).symbols) ∈
+          symbols_in_formula (Lhom.on_bounded_formula (inclusion (L := L)) ψ).fst := by
+      simpa [bd_ex, bd_not, bd_all, bd_imp, bd_falsum] using hsEx
+    exact wit_not_mem_symbols_witnessBody (L := L) ψ ψ hs'
+  · exact wit_not_mem_symbols_witnessBody (L := L) ψ ψ hs
+
+private theorem is_consistent_insert_instance_of_exists {L : Language.{u}} {T : Theory L}
+    (hT : is_consistent T) {f : bounded_formula L 1} {c : L.constants}
+    (hΓ : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ Set.sUnion (symbols_in_formula '' Theory.fst T))
+    (hf : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ symbols_in_formula f.fst)
+    (hex : T ⊢ bd_ex f) :
+    is_consistent (insert (Lhom.boundedFormulaSubstSentence f (bd_const c)) T) := by
+  intro hBad
+  have hNotInst' : T ⊢' ∼(Lhom.boundedFormulaSubstSentence f (bd_const c)) := simpI' hBad
+  have hNotInst : T ⊢ Lhom.boundedFormulaSubstSentence (bd_not f) (bd_const c) := by
+    simpa [Lhom.boundedFormulaSubstSentence, bd_not, bd_imp, bd_falsum, sentence.not] using
+      (Classical.choice hNotInst' : T ⊢ ∼(Lhom.boundedFormulaSubstSentence f (bd_const c)))
+  have hfNot : (Sum.inl ⟨0, c⟩ : L.symbols) ∉ symbols_in_formula (bd_not f).fst := by
+    simpa [bd_not, bd_imp, bd_falsum] using hf
+  have hAllNot : T ⊢ bd_all (bd_not f) :=
+    Lhom.sgeneralize_constant c hΓ hfNot hNotInst
+  have hExNot : T ⊢' ∼(bd_all (bd_not f)) := by
+    simpa [bd_ex, bd_not] using (sprovable_of_sprf hex)
+  exact hT (snot_and_self'' ⟨hAllNot⟩ hExNot)
+
+theorem is_consistent_henkinTheoryStep {L : Language.{u}} {T : Theory L}
+    (hT : is_consistent T) : is_consistent (henkinTheoryStep T) := by
+  classical
+  let Tbase : Theory (languageStep L) := Lhom.Theory_induced (inclusion (L := L)) T
+  let W : Set (sentence (languageStep L)) :=
+    henkinWitnessSentence (L := L) '' (Set.univ : Set (bounded_formula L 1))
+  have hbase : is_consistent Tbase := by
+    letI : Lhom.has_decidable_range (inclusion (L := L)) :=
+      ⟨fun {n} => Classical.decPred _, fun {n} => Classical.decPred _⟩
+    dsimp [Tbase]
+    exact Lhom.is_consistent_Theory_induced (ϕ := inclusion (L := L)) (inclusion_inj (L := L)) hT
+  have hfinite :
+      ∀ s : Finset (sentence (languageStep L)),
+        ((s : Set (sentence (languageStep L))) ⊆ W) →
+          is_consistent (Tbase ∪ finTheory s) := by
+    intro s
+    refine Finset.induction_on s ?_ ?_
+    · intro _
+      have hEq : Tbase ∪ finTheory (∅ : Finset (sentence (languageStep L))) = Tbase := by
+        ext x
+        change x ∈ Tbase.carrier ∪ (finTheory (∅ : Finset (sentence (languageStep L)))).carrier ↔
+          x ∈ Tbase.carrier
+        simp [finTheory]
+      simpa [hEq] using hbase
+    · intro ψ s hψs ih hs
+      have hsTail : ((s : Set (sentence (languageStep L))) ⊆ W) := by
+        intro x hx
+        exact hs (by simp [hx])
+      have ih' : is_consistent (Tbase ∪ finTheory s) := ih hsTail
+      have hψW : ψ ∈ W := hs (by simp)
+      rcases hψW with ⟨f, -, rfl⟩
+      have hFreshTheory :
+          (Sum.inl ⟨0, wit' f⟩ : (languageStep L).symbols) ∉
+            Set.sUnion (symbols_in_formula '' Theory.fst (Tbase ∪ finTheory s)) := by
+        intro hsSym
+        rcases hsSym with ⟨S, hS, hsSym⟩
+        rcases hS with ⟨σ, hσ, rfl⟩
+        rcases hσ with ⟨θ, hθ, rfl⟩
+        change θ ∈ (Tbase ∪ finTheory s).carrier at hθ
+        rcases hθ with hθ | hθ
+        · change θ ∈ Tbase.carrier at hθ
+          rcases hθ with ⟨θ', hθ', rfl⟩
+          exact Lhom.not_mem_function_in_formula_on_formula
+            (ϕ := inclusion (L := L)) (wit_not_mem_range_inclusion (L := L) f) (θ' : formula L) hsSym
+        · have hθs : θ ∈ s := by
+            simpa [finTheory] using hθ
+          have hθW : θ ∈ W := hsTail hθs
+          rcases hθW with ⟨f', -, hf'⟩
+          have hneq : f' ≠ f := by
+            intro hEq
+            subst hEq
+            exact hψs (by simpa [hf'] using hθs)
+          rw [← hf'] at hsSym
+          have hsSym' :
+              (Sum.inl ⟨0, wit' f⟩ : (languageStep L).symbols) ∈
+                symbols_in_formula
+                  ((witProperty
+                    (L := languageStep L)
+                    (Lhom.on_bounded_formula (inclusion (L := L)) f')
+                    (wit' f') : sentence (languageStep L)) : formula (languageStep L)) := by
+            simpa [henkinWitnessSentence_eq_witProperty] using hsSym
+          exact wit_not_mem_symbols_witProperty_of_ne (L := L) (ψ := f) (ψ' := f') hneq hsSym'
+      have hFreshBody :
+          (Sum.inl ⟨0, wit' f⟩ : (languageStep L).symbols) ∉
+            symbols_in_formula
+              (henkinWitnessBody
+                (Lhom.on_bounded_formula (inclusion (L := L)) f)).fst :=
+        wit_not_mem_symbols_henkinWitnessBody (L := L) f
+      have hEx :
+          Tbase ∪ finTheory s ⊢
+            bd_ex (henkinWitnessBody (Lhom.on_bounded_formula (inclusion (L := L)) f)) :=
+        provable_henkinWitnessBody
+          (T := Tbase ∪ finTheory s)
+          (f := Lhom.on_bounded_formula (inclusion (L := L)) f)
+      have hInsert :
+          is_consistent
+            (insert
+              (Lhom.boundedFormulaSubstSentence
+                (henkinWitnessBody (Lhom.on_bounded_formula (inclusion (L := L)) f))
+                (bd_const (L := languageStep L) (n := 0) (wit' f)))
+              (Tbase ∪ finTheory s)) :=
+        is_consistent_insert_instance_of_exists ih' hFreshTheory hFreshBody hEx
+      have hEq :
+          Tbase ∪ finTheory (insert (henkinWitnessSentence (L := L) f) s) =
+            insert (henkinWitnessSentence (L := L) f) (Tbase ∪ finTheory s) := by
+        ext x
+        change x ∈ Tbase.carrier ∪ (finTheory (insert (henkinWitnessSentence (L := L) f) s)).carrier ↔
+          x ∈ (insert (henkinWitnessSentence (L := L) f) (Tbase ∪ finTheory s)).carrier
+        constructor
+        · intro hx
+          rcases hx with hx | hx
+          · exact Or.inr (Or.inl hx)
+          · have hx' : x = henkinWitnessSentence (L := L) f ∨ x ∈ s := by
+              simpa [finTheory] using hx
+            rcases hx' with rfl | hx'
+            · exact Or.inl rfl
+            · exact Or.inr (Or.inr hx')
+        · intro hx
+          change x = henkinWitnessSentence (L := L) f ∨ x ∈ (Tbase ∪ finTheory s).carrier at hx
+          rcases hx with rfl | hx
+          · exact Or.inr (by simp [finTheory])
+          · rcases hx with hx | hx
+            · exact Or.inl hx
+            · exact Or.inr (by
+                change x ∈ ((insert (henkinWitnessSentence (L := L) f) s : Finset (sentence (languageStep L))) :
+                  Set (sentence (languageStep L)))
+                simp [hx])
+      simpa [hEq] using hInsert
+  intro hBad
+  rcases theory_proof_compactness hBad with ⟨Γ, hΓ, hsub⟩
+  let Γw : Finset (sentence (languageStep L)) := Γ.filter fun x => decide (x ∉ Tbase)
+  have hΓwW : ((Γw : Set (sentence (languageStep L))) ⊆ W) := by
+    intro x hx
+    have hx' : x ∈ Γ ∧ x ∉ Tbase := by
+      simpa [Γw] using hx
+    have hxStep : x ∈ henkinTheoryStep T := hsub hx'.1
+    dsimp [henkinTheoryStep] at hxStep
+    rcases hxStep with hxBase | hxW
+    · exact False.elim (hx'.2 hxBase)
+    · simpa [W, henkinWitnessSentence_eq_witProperty] using hxW
+  have hSmall : Tbase ∪ finTheory Γw ⊢' (⊥ : sentence (languageStep L)) := by
+    rcases hΓ with ⟨hΓ⟩
+    exact ⟨sweakening (by
+      intro x hx
+      change x ∈ (finTheory Γ).carrier at hx
+      have hxΓ : x ∈ Γ := hx
+      have hxStep : x ∈ henkinTheoryStep T := hsub hx
+      have hxUnion : x ∈ Tbase ∪ finTheory Γw := by
+        by_cases hxBase : x ∈ Tbase
+        · exact Or.inl hxBase
+        · have hxΓw : x ∈ Γw := by
+            simp [Γw, hxΓ, hxBase]
+          exact Or.inr hxΓw
+      exact hxUnion) hΓ⟩
+  exact (hfinite Γw hΓwW) hSmall
 
 def iota {L : Language.{u}} {T : Theory L} (m : Nat) : Theory (LInfty L) :=
   Lhom.Theory_induced (canonicalMap (L := L) m) (henkinTheoryChain T m)
@@ -1319,7 +1550,7 @@ lemma henkinTheoryChainInclusion {L : Language.{u}} {T : Theory L} :
         exact henkinTheoryChainInclusionStep ih
 
 lemma iotaInclusionOfLe {L : Language.{u}} {T : Theory L} :
-    ∀ {i j : Nat} (h : i ≤ j), Theory.Subset (iota (T := T) i) (iota (T := T) j)
+    ∀ {i j : Nat} (_ : i ≤ j), Theory.Subset (iota (T := T) i) (iota (T := T) j)
   | i, j, h => by
       intro ψ hψ
       change ψ ∈

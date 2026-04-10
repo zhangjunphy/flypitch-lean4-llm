@@ -1572,6 +1572,57 @@ lemma iotaInclusionOfLe {L : Language.{u}} {T : Theory L} :
                     (fun ϕ => @Lhom.on_formula _ _ ϕ 0 (f : formula (chainObjects L i)))
                     ((coconeOfLInfty (L := L)).h_compat h).symm
 
+theorem is_consistent_henkinTheoryChain {L : Language.{u}} {T : Theory L}
+    (hT : is_consistent T) : ∀ n : Nat, is_consistent (henkinTheoryChain T n)
+  | 0 => hT
+  | n + 1 => is_consistent_henkinTheoryStep (T := henkinTheoryChain T n)
+      (is_consistent_henkinTheoryChain hT n)
+
+theorem is_consistent_iota {L : Language.{u}} {T : Theory L} (hT : is_consistent T) (n : Nat) :
+    is_consistent (iota (T := T) n) := by
+  letI : Lhom.has_decidable_range (canonicalMap (L := L) n) :=
+    ⟨fun {k} => Classical.decPred _, fun {k} => Classical.decPred _⟩
+  exact Lhom.is_consistent_Theory_induced
+    (ϕ := canonicalMap (L := L) n) (canonicalMap_inj (L := L) n)
+    (is_consistent_henkinTheoryChain (T := T) hT n)
+
+lemma finite_subset_iota_of_mem_TInfty {L : Language.{u}} {T : Theory L}
+    (Γ : Finset (sentence (LInfty L))) (hΓ : ((Γ : Set (sentence (LInfty L))) ⊆ (TInfty T).carrier)) :
+    ∃ n : Nat, ((Γ : Set (sentence (LInfty L))) ⊆ (iota (T := T) n).carrier) := by
+  classical
+  induction Γ using Finset.induction_on with
+  | empty =>
+      refine ⟨0, ?_⟩
+      intro ψ hψ
+      simp at hψ
+  | @insert ψ s hψs ih =>
+      have hs : ((s : Set (sentence (LInfty L))) ⊆ (TInfty T).carrier) := by
+        intro φ hφ
+        exact hΓ (by simp [hφ])
+      rcases ih hs with ⟨ns, hsns⟩
+      have hψTInfty : ψ ∈ TInfty T := hΓ (by simp)
+      rcases Set.mem_iUnion.mp hψTInfty with ⟨nψ, hψnψ⟩
+      refine ⟨max ns nψ, ?_⟩
+      intro φ hφ
+      rcases Finset.mem_insert.mp hφ with rfl | hφs
+      · exact iotaInclusionOfLe (T := T) (i := nψ) (j := max ns nψ) (Nat.le_max_right _ _) hψnψ
+      · exact iotaInclusionOfLe (T := T) (i := ns) (j := max ns nψ) (Nat.le_max_left _ _) (hsns hφs)
+
+theorem is_consistent_TInfty {L : Language.{u}} {T : Theory L} (hT : is_consistent T) :
+    is_consistent (TInfty T) := by
+  intro hBad
+  rcases theory_proof_compactness (T := TInfty T) (ψ := (⊥ : sentence (LInfty L))) hBad with
+    ⟨Γ, hΓ, hΓsub⟩
+  rcases finite_subset_iota_of_mem_TInfty (T := T) Γ hΓsub with ⟨n, hΓn⟩
+  have hBadIota : iota (T := T) n ⊢' (⊥ : sentence (LInfty L)) := by
+    rcases hΓ with ⟨hΓ⟩
+    exact ⟨sweakening hΓn hΓ⟩
+  exact is_consistent_iota (T := T) hT n hBadIota
+
+theorem is_consistent_henkinization {L : Language.{u}} {T : Theory L} (hT : is_consistent T) :
+    is_consistent (henkinization (L := L) (T := T) hT) := by
+  simpa [henkinization] using is_consistent_TInfty (T := T) hT
+
 end henkin
 
 end Flypitch

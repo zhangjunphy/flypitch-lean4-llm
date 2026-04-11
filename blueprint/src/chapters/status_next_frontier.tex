@@ -1,104 +1,62 @@
 \chapter{Status And Next Frontier}
 \label{chap:status-next-frontier}
 
-This final chapter summarizes what the current Lean 4 blueprint now documents
-and where the project boundary still lies.
+The present blueprint now tells a complete logic-side story: it starts with
+first-order syntax and semantics, passes through compactness and completion,
+develops the language-extension machinery needed for witness arguments, and
+ends with complete Henkin extensions of consistent theories.
 
-\section{What Is Implemented}
+\section{What The Current Port Delivers}
 
-The present blueprint covers the currently verified logic-side surface of the
-repository:
+From a mathematical point of view, the Lean 4 repository already contains:
 \begin{itemize}
-\item the first-order syntax and proof system,
-\item semantic realization and soundness,
-\item sentence and theory infrastructure,
-\item compactness and maximal consistent extensions,
-\item directed colimits and language-extension machinery,
-\item the Henkin language chain, \texttt{LInfty}, consistency of
-henkinization, and the complete Henkin extension package.
+\item a first-order proof system together with soundness,
+\item the theory-level notions of consistency and completeness,
+\item compactness in the form needed for finite-fragment arguments,
+\item maximal and complete consistent extensions,
+\item the language-colimit and reflection tools needed to manage enlarging
+languages,
+\item the Henkin construction through complete Henkin extensions.
 \end{itemize}
 
-Concretely, the verified imported modules are:
-\begin{itemize}
-\item \texttt{Flypitch/Compat/Core.lean}
-\item \texttt{Flypitch/FOL/Syntax.lean}
-\item \texttt{Flypitch/FOL/Formula.lean}
-\item \texttt{Flypitch/FOL/Proof.lean}
-\item \texttt{Flypitch/FOL/Semantics.lean}
-\item \texttt{Flypitch/FOL/Theory.lean}
-\item \texttt{Flypitch/Compactness.lean}
-\item \texttt{Flypitch/Completion.lean}
-\item \texttt{Flypitch/Colimit.lean}
-\item \texttt{Flypitch/LanguageExtension.lean}
-\item \texttt{Flypitch/Henkin.lean}
-\item \texttt{Flypitch/Examples/Abel.lean}
-\end{itemize}
+This is already substantial. It means that the model-theoretic infrastructure
+behind the classical Henkin proof is no longer merely planned; it is present in
+verified Lean 4 code.
 
-\section{What This Does Not Yet Mean}
+\section{What Is Not Yet Present}
 
-Although the logic branch is now substantial, the full Flypitch port is not yet
-complete.
+The current state should not be overstated.
 
 \begin{itemize}
-\item The remaining logic-side packaging corresponding to the later
-\texttt{completeness} module is not yet documented from Lean 4 code, because
-that part is not yet present as verified ported surface.
-\item None of the forcing-side modules are present yet.
-\item The integration modules culminating in the theorem
-\texttt{independence\_of\_CH} are still absent.
+\item The later completeness-side packaging beyond the present Henkin layer is
+not yet part of the documented Lean 4 surface.
+\item The forcing-side development has not yet been ported.
+\item The final integration leading to independence of the continuum hypothesis
+is therefore still absent.
 \end{itemize}
 
-So the current state should be understood as follows: the repository already
-contains most of the internal logic and Henkin machinery needed for the model
-theoretic branch, but it does not yet contain the forcing and ZFC constructions
-that drive the final independence result.
+So the repository has reached a meaningful stopping point on the logic side,
+but not the full Flypitch endpoint.
 
-\section{Current Port Boundary}
+\section{The Next Frontier}
 
-According to the project tracker, the next major unported dependency is
+According to the current project boundary, the next major missing development is
 \texttt{pSet\_ordinal}. This marks the beginning of the forcing-side branch.
 
-The remaining upstream structure can be grouped into three unfinished layers:
+Once that side of the project begins to land in Lean 4, the natural blueprint
+continuation will move from the present model-theoretic story to the
+set-theoretic and Boolean-valued constructions used in forcing.
+
+\section{How The Blueprint Should Grow}
+
+The rule for future chapters should remain the same as in this pass:
+
 \begin{itemize}
-\item the forcing-side foundation beginning with \texttt{pSet\_ordinal},
-\item the Boolean-valued model and forcing results,
-\item the final integration modules \texttt{bfol}, \texttt{zfc},
-\texttt{print\_formula}, and \texttt{summary}.
+\item document only mathematics that is already verified in Lean 4,
+\item write the chapters as mathematical explanations rather than code tours,
+\item use Lean names to orient the reader, not to replace the mathematics.
 \end{itemize}
 
-This is why the blueprint currently ends after the Henkin chapter. That is the
-last substantial mathematical chapter currently justified by implemented Lean 4
-code. The present chapter is therefore a status record rather than the start of
-another completed mathematical construction.
-
-\section{How The Blueprint Should Grow Next}
-
-When more modules land, the next documentation passes should follow the same
-rule used so far: document only verified content, and organize the exposition by
-mathematical construction rather than by raw file order.
-
-In particular, once the forcing side begins to appear, the next natural
-blueprint chapters should start from:
-\begin{itemize}
-\item the \texttt{pSet\_ordinal} groundwork,
-\item the topology and regular-open algebra layer,
-\item the collapse and Boolean-valued model constructions.
-\end{itemize}
-
-\section{Present Reading Guide}
-
-For a reader approaching the current Lean 4 project today, the chapters of this
-blueprint should be read as a coherent logic-side story:
-\begin{itemize}
-\item Chapters~\ref{chap:fol-core} and~\ref{chap:compactness-completion}
-develop proof theory, compactness, and completion.
-\item Chapter~\ref{chap:colimits-language-extension} explains how syntax and
-proofs move across language extensions.
-\item Chapter~\ref{chap:henkinization} shows how those tools are assembled into
-the henkinization
-construction.
-\end{itemize}
-
-That story is already mathematically meaningful on its own. It gives a verified
-account of the first-order and Henkin-completeness infrastructure on which the
-rest of the Flypitch port will eventually build.
+When the forcing branch is ported, the next chapters should therefore begin
+with the underlying mathematics of that branch rather than with a list of Lean
+modules.

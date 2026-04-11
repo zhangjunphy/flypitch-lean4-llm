@@ -1,327 +1,213 @@
 \chapter{Henkinization}
 \label{chap:henkinization}
 
-This chapter documents the implemented Henkin layer in
-\texttt{Flypitch/Henkin.lean}. Its role is to enlarge a consistent theory by
-adding enough witness constants, then pass to a limit language in which those
-witnesses are all available at once.
+We now reach the central construction on the logic side. Starting from a
+consistent theory, one adjoins enough witness constants to ensure that every
+existential statement has a named witness in an enlarged language. The output
+is a consistent Henkin theory, and after applying completion one obtains a
+complete Henkin extension. This chapter documents the part of that argument
+implemented in \texttt{Flypitch/Henkin.lean}.
 
-It combines the completion tools from
-Chapter~\ref{chap:compactness-completion} with the language-extension and
-colimit machinery from Chapter~\ref{chap:colimits-language-extension}.
+\section{Adjoining Witness Constants In One Step}
 
-The chapter stops exactly where the current Lean 4 development stops. It
-documents the henkinization construction itself and the resulting complete
-Henkin extension package. It does not pretend that the final completeness
-theorem has already been ported.
-
-\section{The One-Step Language Extension}
-
-Given a language $L$, the first operation is to adjoin a new constant symbol
-for every bounded formula with one free variable.
+Given a language $L$, the first move is to enlarge it by adding one new
+constant for each bounded formula in one free variable.
 
 \begin{definition}[One-Step Henkin Language]
 \label{def:henkin-one-step-language}
 \uses{def:fol-bounded-syntax}
-The type \texttt{languageFunctions L} adds two kinds of function symbols:
-\begin{itemize}
-\item the original function symbols of $L$,
-\item a nullary witness symbol attached to each bounded formula in one variable.
-\end{itemize}
-The resulting language is \texttt{languageStep L}.
+The one-step Henkin extension of $L$ is the language obtained by adjoining, for
+every bounded formula $f(x)$, a new constant intended to witness $f$.
 \end{definition}
 
-The constructor \texttt{wit'} picks out the witness constant associated to a
-bounded formula, and \texttt{inclusion} is the canonical map from $L$ into
-\texttt{languageStep L}. The theorem \texttt{inclusion\_inj} records that this
-language map is injective.
+This is the formal version of the usual idea from the completeness proof: if
+one wants existential statements to have canonical witnesses, one expands the
+language so that such witnesses can be named.
 
-\section{The Omega-Chain Of Languages}
+\section{Iterating The Construction}
 
-Henkinization does not stop after one step, because new formulas become
-available after adding new constants. The file therefore iterates the step
-construction.
+One application of the previous step is not enough, because after adjoining new
+constants, one obtains new formulas that may themselves require witnesses. The
+construction is therefore iterated along the natural numbers.
 
 \begin{definition}[Henkin Language Chain]
 \label{def:henkin-language-chain}
 \uses{def:henkin-one-step-language,def:language-hom}
-The recursively defined languages \texttt{chainObjects L n} are given by:
-\begin{itemize}
-\item stage $0$ is the original language $L$,
-\item stage $n+1$ is \texttt{languageStep} applied to stage $n$.
-\end{itemize}
-The maps between stages are \texttt{chainMaps}.
+The Henkin language chain starts from the original language at stage $0$ and
+applies the one-step witness extension at each successor stage.
 \end{definition}
 
-The lemmas \texttt{chainMaps\_comp} and \texttt{chainMaps\_inj} show that these
-maps form a directed system of injective language embeddings. This produces the
-language-valued directed diagram \texttt{languageChain}.
+The transition maps between stages are injective, so each finite stage embeds
+faithfully into every later one.
 
-\section{The Colimit Language \texttt{LInfty}}
+\section{The Infinite Henkin Language}
 
-The file first redoes the colimit construction at the level of languages,
-inside a local namespace specialized to language-valued diagrams. The purpose
-is to take the directed colimit of the chain just described.
-
-\begin{definition}[Infinite Henkin Language]
+\begin{definition}[The Limit Language]
 \label{def:linfty-language}
 \uses{def:henkin-language-chain,def:diagram-colimit}
-The colimit language of the chain \texttt{languageChain} is denoted
-\texttt{LInfty L}. The canonical map from stage $m$ into this colimit is
-\texttt{canonicalMap m}.
+The infinite Henkin language $L_\infty$ is the directed colimit of the finite
+Henkin language chain.
 \end{definition}
 
-The theorem \texttt{canonicalMap\_inj} states that each stage embeds
-injectively into \texttt{LInfty}. Thus \texttt{LInfty} may be regarded as the
-language obtained by adjoining witness constants through all finite stages and
-then identifying compatible symbols.
+Mathematically, $L_\infty$ is the language obtained by adjoining all witness
+constants produced at all finite stages and identifying symbols that are the
+same after passing sufficiently far along the chain.
 
-\section{Comparing Stage Syntax With Colimit Syntax}
+\section{Finite-Stage Representatives}
 
-The central technical task is to show that syntax over \texttt{LInfty} can be
-represented by syntax already appearing at some finite stage.
+The crucial structural fact about $L_\infty$ is that terms and formulas over
+the limit language still come from finite stages.
 
-To do this, the file forms directed diagrams not only of languages but also of:
-\begin{itemize}
-\item terms, via \texttt{termChain},
-\item formulas, via \texttt{formulaChain},
-\item bounded terms, via \texttt{boundedTermChain},
-\item bounded formulas, via \texttt{boundedFormulaChain}.
-\end{itemize}
-
-Each of these diagrams carries a cocone into the corresponding syntax over
-\texttt{LInfty}. The induced universal maps are:
-\begin{itemize}
-\item \texttt{termComparison},
-\item \texttt{formulaComparison},
-\item \texttt{boundedTermComparison},
-\item \texttt{boundedFormulaComparison}.
-\end{itemize}
-
-\begin{theorem}[Comparison Maps Are Bijective]
+\begin{theorem}[Finite-Stage Comparison]
 \label{thm:henkin-comparison-bijective}
-\uses{def:linfty-language,prop:canonical-map-colimit,prop:colimit-universal,def:fol-bounded-syntax}
-The four comparison maps above are bijections.
+\uses{def:linfty-language,prop:colimit-universal,def:fol-bounded-syntax}
+Every term, formula, bounded term, and bounded formula over $L_\infty$ is
+represented by a unique compatible germ of corresponding syntax at a finite
+stage of the Henkin chain.
 \end{theorem}
 
 \begin{proof}
-The Lean theorems are:
-\begin{itemize}
-\item \texttt{termComparison\_bijective}
-\item \texttt{formulaComparison\_bijective}
-\item \texttt{boundedTermComparison\_bijective}
-\item \texttt{boundedFormulaComparison\_bijective}
-\end{itemize}
-
-Injectivity comes from the universal-property injectivity criterion proved in
-the colimit chapter, together with injectivity of the canonical language maps.
-Surjectivity is more involved: the file recursively reconstructs a finite-stage
-representative for every term or formula over \texttt{LInfty}, pushing
-subexpressions to a common stage whenever necessary.
+Injectivity comes from the injectivity of the canonical maps into the colimit.
+Surjectivity is proved by structural recursion: each finite syntactic piece of
+an $L_\infty$-expression already uses only finitely many symbols, so all of
+them appear together at some sufficiently high finite stage.
 \end{proof}
 
-For bounded formulas with one free variable, the resulting bijection is packaged
-as the explicit equivalence \texttt{equivBoundedFormulaComparison}. This is the
-bridge that later lets the development choose witness constants in
-\texttt{LInfty} by descending to a finite stage.
+This theorem is what allows witness arguments in the limit language to be
+reduced to witness arguments at finite stages.
 
-\section{Witness Properties And Enough Constants}
-
-The next layer turns the language construction into a theory construction.
+\section{Witness Sentences And Enough Constants}
 
 \begin{definition}[Witness Property]
 \label{def:henkin-witness-property}
 \uses{def:fol-bounded-syntax}
-For a bounded formula $f$ with one free variable and a constant $c$, the
-sentence \texttt{witProperty f c} says:
+For a formula $f(x)$ and a constant $c$, the witness property is the sentence
 \[
 \exists x\, f(x) \to f(c).
 \]
 \end{definition}
 
-Using this sentence, the predicate \texttt{has\_enough\_constants T} expresses
-that every bounded one-variable formula has a constant whose witness property is
-provable in $T$.
+A theory has \emph{enough constants} if every bounded one-variable formula has
+some constant satisfying this witness property.
 
-The theorem \texttt{has\_enough\_constants\_of\_subset} shows that this property
-is monotone under theory extension. This will matter at the very end, when a
-complete extension of the henkinization is produced.
+\section{The One-Step Theory Extension}
 
-\section{The One-Step Henkin Theory}
-
-\begin{definition}[Henkin Theory Step]
+\begin{definition}[One-Step Henkin Theory]
 \label{def:henkin-theory-step}
 \uses{def:henkin-one-step-language,def:henkin-witness-property}
-For a theory $T$ over $L$, write \texttt{henkinTheoryStep T} for the union of:
-\begin{itemize}
-\item the image of $T$ under the language inclusion into \texttt{languageStep
-L},
-\item all witness sentences attached to bounded one-variable formulas over $L$.
-\end{itemize}
+Given a theory $T$ over $L$, the one-step Henkin extension is obtained by
+transporting $T$ into the one-step Henkin language and adjoining all witness
+sentences for bounded one-variable formulas over $L$.
 \end{definition}
 
-The file also defines the iterated tower \texttt{henkinTheoryChain T n}. To
-state the witness axioms in a proof-friendly form, it introduces:
-\begin{itemize}
-\item \texttt{henkinWitnessBody},
-\item \texttt{henkinWitnessSentence},
-\item \texttt{henkinWitnessSentence\_eq\_witProperty}.
-\end{itemize}
+This is the natural theory-level companion to the language extension: each new
+constant is accompanied by the axiom asserting that it behaves as a witness.
 
-The point of this reformulation is that the witness sentence is treated as a
-specialized instance of the fresh-constant generalization theorem from the
-previous chapter.
-
-\section{Consistency Of One Witness Step}
-
-The first genuinely mathematical theorem of the chapter is that one Henkin step
-preserves consistency.
+\section{Consistency Of One Henkin Step}
 
 \begin{theorem}[Consistency Of One Henkin Step]
 \label{thm:henkin-step-consistent}
 \uses{def:henkin-theory-step,thm:generalize-constant,thm:theory-proof-compactness}
-If $T$ is consistent, then \texttt{henkinTheoryStep T} is consistent.
+If $T$ is consistent, then its one-step Henkin extension is also consistent.
 \end{theorem}
 
 \begin{proof}
-This is \texttt{is\_consistent\_henkinTheoryStep}. The proof has three main
-ingredients.
-
-\begin{itemize}
-\item First, the image of $T$ inside the larger language is consistent by the
-consistency-preservation theorem for induced theories.
-\item Second, the file isolates freshness lemmas showing that the newly adjoined
-witness constant for a formula does not already occur in the relevant theory or
-formula body.
-\item Third, the theorem \texttt{generalize\_constant} from the language
-extension chapter is applied through the helper theorem
-\texttt{is\_consistent\_insert\_instance\_of\_exists}.
-\end{itemize}
-
-Compactness is then used to reduce a hypothetical inconsistency in the full
-Henkin step to a finite collection of witness axioms, which are added one by
-one while preserving consistency.
+The key point is that each newly adjoined witness constant is fresh. If a
+finite collection of witness axioms produced a contradiction, one could add
+them one at a time. At each stage, the fresh-constant generalization theorem
+from Chapter~\ref{chap:colimits-language-extension} converts any illicit proof
+using the new constant into a proof that no longer depends on it. Compactness
+reduces the argument to finitely many such steps.
 \end{proof}
 
-\section{From The Chain To \texttt{TInfty}}
+This is the decisive consistency-preservation result in the entire Henkin
+construction.
 
-Once the one-step theorem is in place, the rest of the consistency story is an
-induction and colimit argument.
+\section{Passing To The Limit Theory}
 
-\begin{definition}[Theories Inside \texttt{LInfty}]
+The one-step theorem is then iterated along the chain of finite Henkin stages,
+and each finite-stage theory is transported into the limit language $L_\infty$.
+Their union is the limit theory usually denoted $T_\infty$.
+
+\begin{definition}[The Limit Theory]
 \label{def:tinfty-theories}
 \uses{def:linfty-language,def:henkin-theory-step}
-For each stage $m$, the theory \texttt{iota m} is the image of
-\texttt{henkinTheoryChain T m} inside \texttt{LInfty}. The full limit theory is
-\texttt{TInfty T}, defined as the union of all these stage images.
+The theory $T_\infty$ is the union, inside $L_\infty$, of the images of all
+finite Henkin stages of the original theory.
 \end{definition}
 
-The inclusion lemmas
-\texttt{henkinTheoryChainInclusionStep},
-\texttt{henkinTheoryChainInclusion}, and
-\texttt{iotaInclusionOfLe}
-show that these stage theories form an increasing chain.
-
-\begin{theorem}[Consistency Along The Entire Henkin Chain]
+\begin{theorem}[Consistency Along The Henkin Chain]
 \label{thm:henkin-tinfty-consistent}
 \uses{thm:henkin-step-consistent,thm:theory-proof-compactness,def:tinfty-theories}
-If $T$ is consistent, then all finite Henkin stages are consistent, each
-\texttt{iota n} is consistent, the union \texttt{TInfty T} is consistent, and
-therefore the henkinization itself is consistent.
+If $T$ is consistent, then every finite Henkin stage is consistent, the
+corresponding theories inside $L_\infty$ are consistent, and the limit theory
+$T_\infty$ is consistent.
 \end{theorem}
 
 \begin{proof}
-This is spread across the theorems:
-\begin{itemize}
-\item \texttt{is\_consistent\_henkinTheoryChain}
-\item \texttt{is\_consistent\_iota}
-\item \texttt{is\_consistent\_TInfty}
-\item \texttt{is\_consistent\_henkinization}
-\end{itemize}
-
-The proof of \texttt{is\_consistent\_TInfty} again uses compactness. Any finite
-inconsistent subtheory of the union already lies inside some single
-\texttt{iota n}, contradicting the consistency of that stage.
+Finite-stage consistency is an induction using
+Theorem~\ref{thm:henkin-step-consistent}. The consistency of the union again
+comes from compactness: any finite inconsistent fragment of $T_\infty$ already
+lies in a single finite stage.
 \end{proof}
 
-\section{Enough Constants In The Limit Language}
+\section{Enough Constants In The Limit}
 
-The finite-stage witness machinery must still be transferred to
-\texttt{LInfty}. This is where the comparison equivalence for bounded formulas
-is used.
-
-The definition \texttt{witInfty} chooses, for a bounded one-variable formula
-over \texttt{LInfty}, a representative at some finite stage together with the
-corresponding witness constant in the next stage. Using this representative, the
-theorem \texttt{henkinizationIsHenkin} proves that the consistent theory
-\texttt{henkinization} has enough constants.
-
-Conceptually, the argument is:
-\begin{itemize}
-\item choose a finite-stage representative of the target formula,
-\item use the witness axiom already inserted at the next stage,
-\item transport that axiom into \texttt{LInfty},
-\item identify it with the desired witness property for the original formula.
-\end{itemize}
+The next point is to show that the limit theory really has the Henkin witness
+property. Given a bounded one-variable formula over $L_\infty$, the comparison
+theorem above represents it at some finite stage. The corresponding witness
+sentence has already been inserted at the next stage, and therefore appears in
+the limit theory after transport to $L_\infty$.
 
 \begin{proposition}[Henkinization Has Enough Constants]
 \label{prop:henkinization-has-enough-constants}
 \uses{thm:henkin-comparison-bijective,def:henkin-witness-property}
-The consistent theory \texttt{henkinization} has enough constants.
+The consistent limit theory obtained from the Henkin chain has enough
+constants.
 \end{proposition}
 
-\begin{proof}
-This is the theorem \texttt{henkinizationIsHenkin}. The proof uses the finite-stage
-representative chosen by \texttt{witInfty} and transports the corresponding witness
-axiom from a finite stage of the Henkin tower into \texttt{LInfty}.
-\end{proof}
-
-\section{Complete Henkin Theories Over A Consistent Base}
-
-The file packages the final output as follows.
+\section{Complete Henkin Extensions}
 
 \begin{definition}[Henkin Language Over A Theory]
 \label{def:henkin-language-over}
 \uses{def:linfty-language}
-The language \texttt{henkinLanguage T} is just \texttt{LInfty} for the base
-language of $T$, and \texttt{henkinLanguageOver} is the canonical embedding of
-the original language into that limit language.
+The Henkin language of a theory $T$ is the limit language constructed from the
+language underlying $T$.
 \end{definition}
 
-The type \texttt{completeHenkinTheoryOver T hT} consists of theory extensions of
-$T$ that are both complete and have enough constants.
-
-\begin{theorem}[Complete Henkinization Of A Consistent Theory]
+\begin{theorem}[Complete Henkinization]
 \label{thm:complete-henkinization}
 \uses{thm:henkin-tinfty-consistent,cor:completion-of-consistent-theory,prop:henkinization-has-enough-constants,def:henkin-language-over}
-Every consistent theory admits a complete Henkin extension over its
-henkinization.
+Every consistent theory admits a complete Henkin extension in its Henkin
+language.
 \end{theorem}
 
 \begin{proof}
-This is \texttt{completeHenkinizationOfConsis}. The proof applies the
-completion theorem from the previous chapter to the consistent theory
-\texttt{henkinization}. The two supporting inputs are:
-\begin{itemize}
-\item \texttt{is\_consistent\_henkinization}
-\item \texttt{henkinizationIsHenkin}
-\end{itemize}
-The property of having enough constants is then inherited by the completed
-theory by monotonicity under extension.
+The Henkin construction yields a consistent theory with enough constants. One
+then applies the completion theorem from
+Chapter~\ref{chap:compactness-completion}. Since the witness property is
+monotone under extension, the resulting complete theory remains Henkin.
 \end{proof}
 
-\section{Current Boundary}
+\section{Present Boundary}
 
-At this point the Lean 4 project has reconstructed the full henkinization
-package needed for the logic branch:
+This chapter is the current endpoint of the formalized logic-side story. The
+repository already reaches:
 \begin{itemize}
-\item the witness-extension language chain,
-\item the colimit language \texttt{LInfty},
-\item finite-stage representatives for colimit syntax,
-\item consistency of the Henkin step and of the entire limit theory,
-\item a complete Henkin extension over the consistent henkinization.
+\item the iterative witness-extension languages,
+\item the limit language $L_\infty$,
+\item consistency of the finite and infinite Henkin theories,
+\item the existence of complete Henkin extensions of consistent theories.
 \end{itemize}
 
-What remains beyond this chapter is not more basic henkinization machinery. The
-next genuine gap is the later completeness-side packaging and then, more
-importantly, the forcing and set-theoretic half of the original project.
+What lies beyond this is not more basic Henkin machinery. The next missing
+pieces are the later completeness-side packaging and then the forcing and
+set-theoretic branch of Flypitch.
+
+\section{Formalization Note}
+
+The Lean file packages these constructions via declarations such as
+\texttt{languageStep}, \texttt{LInfty}, \texttt{witProperty},
+\texttt{henkinTheoryStep}, \texttt{TInfty}, and
+\texttt{completeHenkinizationOfConsis}. Their mathematical role is exactly the
+Henkin construction described above.

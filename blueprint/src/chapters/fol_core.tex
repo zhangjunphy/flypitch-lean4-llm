@@ -1,192 +1,144 @@
 \chapter{First-Order Logic Core}
 \label{chap:fol-core}
 
-This chapter describes the part of the repository that builds first-order
-syntax, derivations, semantics, and theory-level notions. The main source files
-for this layer are:
-\begin{itemize}
-\item \texttt{Flypitch/FOL/Syntax.lean}
-\item \texttt{Flypitch/FOL/Formula.lean}
-\item \texttt{Flypitch/FOL/Proof.lean}
-\item \texttt{Flypitch/FOL/Semantics.lean}
-\item \texttt{Flypitch/FOL/Theory.lean}
-\item \texttt{Flypitch/FOL/Bounded.lean}
-\end{itemize}
+The first task is to fix a precise first-order language, define its syntax and
+semantics, and specify what it means to prove a formula from hypotheses. This
+chapter records the formalized core of that theory. It corresponds to the Lean
+files
+\texttt{Flypitch/FOL/Syntax.lean},
+\texttt{Flypitch/FOL/Formula.lean},
+\texttt{Flypitch/FOL/Proof.lean},
+\texttt{Flypitch/FOL/Semantics.lean},
+\texttt{Flypitch/FOL/Theory.lean}, and
+\texttt{Flypitch/FOL/Bounded.lean}.
 
 \section{Languages, Terms, And Formulas}
 
 \begin{definition}[First-Order Language]
 \label{def:fol-language}
-A first-order language consists of families of function and relation symbols,
-indexed by arity. In Lean this is the structure \texttt{Language}, with fields
-\texttt{functions} and \texttt{relations}.
+A first-order language consists of function symbols and relation symbols, each
+sorted by arity.
 \end{definition}
 
-The syntax uses de Bruijn variables. This means that bound variables are
-represented by natural numbers rather than by names. The advantage is that
-substitution and renaming become explicit structural operations, which is
-exactly what later completeness and Henkin arguments need.
+Once a language $L$ is fixed, one forms its terms and formulas in the usual
+way. The implementation uses de Bruijn variables, so bound variables are
+tracked numerically rather than by names. This choice is mathematically
+inessential, but it makes substitution and variable-shifting precise enough for
+the later completeness arguments.
 
-There is one unusual design choice that is worth explaining early. Terms and
-formulas are built in \emph{partially applied} form. A term of type
-\texttt{preterm L l} is a term in the language $L$ that still expects $l$
-arguments before it becomes closed. Likewise \texttt{preformula L l} is a
-formula that still expects $l$ relation arguments. Closed terms and formulas
-are obtained at arity $0$:
-\[
-\texttt{term L := preterm L 0},
-\qquad
-\texttt{formula L := preformula L 0}.
-\]
-
-This packaging lets the development treat symbols uniformly and avoids a large
-amount of repeated arity bookkeeping.
+The syntax is packaged in a slightly unusual arity-sensitive form: terms and
+formulas are first built as partially applied expressions and only later
+specialized to the closed cases. The advantage is that the basic structural
+operations can be treated uniformly across all arities.
 
 \begin{definition}[Structural Operations]
 \label{def:fol-structural-ops}
 \uses{def:fol-language}
-The core structural operations are:
+The syntax carries two fundamental operations:
 \begin{itemize}
-\item \texttt{lift\_term\_at} and \texttt{lift\_formula\_at}, which raise free
-variables above a cutoff;
-\item \texttt{subst\_term} and \texttt{subst\_formula}, which substitute a term
-for a chosen variable;
-\item a large collection of commutation lemmas showing how lifting and
-substitution interact.
+\item lifting, which raises free variables above a chosen cutoff;
+\item substitution, which replaces a free variable by a term.
 \end{itemize}
-These lemmas are the bookkeeping layer needed for semantics, weakening, and
-eventually Henkin witness constructions.
 \end{definition}
 
-\section{Natural Deduction}
+These are the bookkeeping operations behind every later argument. They are
+needed to formulate quantifier rules, to compare syntax under language maps, and
+to express the witness constructions appearing in the Henkin chapter.
+
+\section{Derivability}
 
 \begin{definition}[Derivability]
 \label{def:fol-derivability}
 \uses{def:fol-language,def:fol-structural-ops}
-For a set $\Gamma$ of formulas, the inductive type \texttt{prf} formalizes
-natural-deduction derivations of $A$ from $\Gamma$. Its rules
-include:
-\begin{itemize}
-\item assumption,
-\item implication introduction and elimination,
-\item ex falso,
-\item universal introduction and elimination,
-\item reflexivity of equality,
-\item substitution of equals into formulas.
-\end{itemize}
-The notation $\Gamma \vdash A$ abbreviates a term of type
-\texttt{prf} with assumptions $\Gamma$ and conclusion $A$, and
-$\Gamma \vdash' A$ is the proposition that such a derivation exists.
+For a set $\Gamma$ of formulas, the relation $\Gamma \vdash A$ is defined by a
+natural-deduction proof system with rules for assumptions, implication,
+universal quantification, falsity, equality, and substitution of equals.
 \end{definition}
 
-The file \texttt{Flypitch/FOL/Proof.lean} then develops the standard structural
-machinery around this inductive system. In particular it proves weakening for
-derivations and packages familiar derived rules such as conjunction and
-disjunction introduction and elimination. This is the proof-theoretic core used
-throughout the compactness and completion arguments.
+This is the proof-theoretic core of the development. The formalized system is
+strong enough for the compactness and completion arguments later on, and the
+repository proves the expected structural facts such as weakening and a family
+of derived introduction and elimination rules.
 
 \section{Structures And Satisfaction}
 
 \begin{definition}[Structure]
 \label{def:fol-structure}
 \uses{def:fol-language}
-An \texttt{L}-structure consists of a carrier type together with
-interpretations of all function and relation symbols of the language. The Lean
-name is \texttt{Structure L}.
+An $L$-structure consists of a carrier set together with interpretations of all
+function and relation symbols of $L$.
 \end{definition}
 
-Given a structure $M$ and a valuation $v : \mathbb{N} \to M$, the development
-defines:
-\begin{itemize}
-\item \texttt{realize\_term v t}, the interpretation of a term,
-\item \texttt{realize\_formula v f}, the truth value of a formula,
-\item \texttt{satisfied\_in M f}, satisfaction of a closed formula in a
-structure,
-\item $\Gamma \models A$, semantic consequence.
-\end{itemize}
+Given a structure $M$ and a valuation of variables in $M$, every term acquires
+an interpretation in $M$ and every formula acquires a truth value. Closed
+formulas may therefore be discussed without reference to a valuation, and one
+obtains the usual notion of semantic consequence.
 
-The main semantic bookkeeping theorems identify syntactic substitution with
-semantic reassignment of valuations. This is the standard bridge that lets the
-natural-deduction rules line up with model-theoretic semantics.
+The central compatibility theorem in this part of the development identifies
+syntactic substitution with semantic reassignment of variables. This is what
+allows the proof system to interact correctly with semantics.
 
 \begin{proposition}[Soundness]
 \label{prop:formula-soundness}
 \uses{def:fol-derivability,def:fol-structure,def:fol-structural-ops}
-If a formula $A$ is derivable from a set of assumptions $\Gamma$, then $A$ is a
-semantic consequence of $\Gamma$.
+If $\Gamma \vdash A$, then every structure satisfying all formulas in $\Gamma$
+also satisfies $A$.
 \[
 \Gamma \vdash A \implies \Gamma \models A.
 \]
 \end{proposition}
 
 \begin{proof}
-This is the theorem \texttt{formula\_soundness}. The proof is by induction on
-the derivation. Each natural-deduction rule is checked directly against the
-semantic definition of truth for formulas. The substitution lemmas proved
-earlier are exactly what make the quantifier and equality cases go through.
+The proof is by induction on a derivation. Each inference rule is checked
+directly against the semantic definition of truth, with the lifting and
+substitution lemmas handling the quantifier and equality cases.
 \end{proof}
 
 \section{Sentences, Theories, And Bounded Syntax}
 
-Later chapters work primarily with closed formulas. For that reason
-\texttt{Flypitch/FOL/Theory.lean} introduces:
-\begin{itemize}
-\item \texttt{sentence L}, the subtype of formulas whose free variables are all
-below $0$,
-\item \texttt{Theory L}, a set of sentences,
-\item theory-level provability and satisfaction,
-\item the predicates \texttt{is\_consistent} and \texttt{is\_complete}.
-\end{itemize}
+The later chapters work primarily with closed formulas, that is, with
+sentences. A \emph{theory} is therefore taken to be a set of sentences. At this
+level one can define theory-level provability and satisfaction, together with
+the familiar notions of consistency and completeness.
 
-This file also isolates the notion of a term or formula being bounded by a
-given number of free variables. The companion file
-\texttt{Flypitch/FOL/Bounded.lean} packages bounded terms and formulas as
-subtypes. These wrappers are not cosmetic. They are the later input to the
-Henkin construction, where one must talk uniformly about formulas with a fixed
-number of open variables and then substitute closed witnesses into them.
+The development also isolates formulas with a prescribed number of free
+variables. This is not merely a technical refinement. The Henkin construction
+needs to speak uniformly about formulas in one free variable and then
+substitute closed terms into them.
 
 \begin{definition}[Bounded Syntax]
 \label{def:fol-bounded-syntax}
 \uses{def:fol-structural-ops}
-For each natural number $n$, the development defines:
-\begin{itemize}
-\item \texttt{bounded\_term L n},
-\item \texttt{bounded\_formula L n},
-\item \texttt{closed\_term L := bounded\_term L 0}.
-\end{itemize}
-These types package syntax together with proofs that all free variables lie
-below the specified bound.
+For each natural number $n$, a bounded term or formula is a term or formula
+whose free variables lie among the first $n$ variables.
 \end{definition}
 
-\section{Sanity Check: Abelian Groups}
+These bounded objects are the correct language for witness formulas, witness
+constants, and the quantified generalization arguments that appear later.
 
-The file \texttt{Flypitch/Examples/Abel.lean} provides a compact regression
-target for the logic core. It defines a language with a constant symbol and a
-binary function symbol, writes down the usual axioms for abelian groups, and
-interprets them in the integers.
+\section{A Model-Theoretic Example}
+
+The file \texttt{Flypitch/Examples/Abel.lean} supplies a concrete example in the
+language of abelian groups. The axioms are interpreted in the integers, and the
+formalization verifies that the integer structure satisfies them.
 
 \begin{proposition}[Integers Satisfy The Abelian-Group Axioms]
 \label{prop:abelian-example}
 \uses{prop:formula-soundness}
-The structure \texttt{intStructure} satisfies the theory \texttt{TAb} of the
-chosen abelian-group language.
+The standard structure on $\mathbb{Z}$ is a model of the chosen theory of
+abelian groups.
 \end{proposition}
 
-\begin{proof}
-The file proves the axioms one by one:
-\begin{itemize}
-\item \texttt{int\_satisfies\_assoc}
-\item \texttt{int\_satisfies\_zeroRight}
-\item \texttt{int\_satisfies\_zeroLeft}
-\item \texttt{int\_satisfies\_inv}
-\item \texttt{int\_satisfies\_comm}
-\end{itemize}
-It then bundles them into \texttt{int\_satisfies\_TAb}. Combining this with
-Proposition~\ref{prop:formula-soundness} yields
-\texttt{int\_satisfies\_of\_prf}: every theorem of \texttt{TAb} is true in the
-integer model.
-\end{proof}
+This example has a clear mathematical purpose. It shows that the syntax,
+semantics, and proof system already interact correctly in a familiar setting
+before the blueprint moves on to the abstract compactness and completion
+machinery.
 
-This example plays two roles. It checks that the proof and semantics layers
-interact correctly, and it gives a concrete model-theoretic example before the
-blueprint moves on to the more abstract compactness and completion machinery.
+\section{Formalization Note}
+
+In Lean, the basic objects are implemented as the structures and types
+\texttt{Language}, \texttt{preterm}, \texttt{preformula}, \texttt{prf},
+\texttt{Structure}, \texttt{Theory}, \texttt{bounded\_term}, and
+\texttt{bounded\_formula}. These names are useful when reading the code, but
+the mathematical content of the chapter is the ordinary first-order framework
+described above.
